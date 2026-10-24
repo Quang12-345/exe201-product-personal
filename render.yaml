@@ -1,11 +1,12 @@
 # Render Blueprint — Trung Tâm Tri Thức AI (AI20K)
 # Kết nối repo GitHub này vào Render (New + → Blueprint) để tự tạo:
 #   - PostgreSQL (ai20k-db)        - Redis/Key Value (ai20k-redis)
-#   - Backend FastAPI (Docker)     - Frontend React/Vite (Static Site)
+#   - Backend FastAPI (Docker)
+# Frontend KHÔNG deploy ở đây — FE chạy trên Vercel (xem DEPLOY_ENV.md).
 #
 # Sau khi apply, điền các biến đánh dấu "sync: false" trong Dashboard (secret):
 #   OPENAI_API_KEY, QDRANT_URL/API_KEY/COLLECTION_NAME, R2_*, EMAIL_USERNAME/PASSWORD/FROM,
-#   CORS_ORIGINS (= URL frontend), và VITE_API_URL của frontend (= URL backend).
+#   CORS_ORIGINS + FRONTEND_URL (= URL Vercel), VNPAY_* (nếu dùng thanh toán).
 #
 # LƯU Ý QUAN TRỌNG (docling/torch nặng): backend nên dùng plan >= "starter" (>=2GB RAM).
 # Plan "free" (512MB) có thể build lâu hoặc thiếu RAM khi xử lý tài liệu. Có thể đặt
@@ -94,6 +95,18 @@ envVarGroups:
       # URL frontend (điền sau khi frontend có domain) để cấu hình CORS.
       - key: CORS_ORIGINS
         sync: false
+      # Cho phép mọi domain preview của Vercel (*.vercel.app). Để trống nếu chỉ dùng CORS_ORIGINS.
+      - key: CORS_ORIGIN_REGEX
+        value: https://.*\.vercel\.app
+      # URL frontend (Vercel) — backend redirect về đây sau khi thanh toán VNPay.
+      - key: FRONTEND_URL
+        sync: false
+      - key: VNPAY_TMN_CODE
+        sync: false
+      - key: VNPAY_HASH_SECRET
+        sync: false
+      - key: VNPAY_RETURN_URL
+        sync: false
       # Google OAuth Client ID (đăng nhập bằng Gmail) — backend xác minh ID token.
       - key: GOOGLE_CLIENT_ID
         sync: false
@@ -129,26 +142,6 @@ services:
           type: redis
           name: ai20k-redis
           property: connectionString
-
-  # ---- Frontend (React/Vite → Static Site) ----
-  - type: web
-    name: ai20k-frontend
-    runtime: static
-    branch: main          # cùng nhánh với backend → FE+BE luôn redeploy đồng bộ.
-    buildCommand: cd frontend && npm ci && npm run build
-    staticPublishPath: frontend/dist
-    autoDeploy: true
-    envVars:
-      # Điền URL backend (vd. https://ai20k-backend.onrender.com) — nhúng lúc build.
-      - key: VITE_API_URL
-        sync: false
-      # Google OAuth Client ID (cùng giá trị GOOGLE_CLIENT_ID của backend) — nhúng lúc build.
-      - key: VITE_GOOGLE_CLIENT_ID
-        sync: false
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
 
   # ---- Worker xử lý tài liệu nền (TÙY CHỌN — cần plan trả phí) ----
   # Bỏ comment khi đã bật INGEST_ASYNC=true và dùng plan hỗ trợ background worker.

@@ -11,6 +11,8 @@ DEFAULT_ROLE_NAMES = tuple(spec.name for spec in DEFAULT_ROLES)
 
 
 def get_async_database_url(url: str) -> str:
+    # asyncpg không hiểu "sslmode" (Supabase/Neon hay gắn) → đổi sang "ssl".
+    url = url.replace("?sslmode=", "?ssl=").replace("&sslmode=", "&ssl=")
     if url.startswith("postgresql+asyncpg://") or url.startswith("sqlite+aiosqlite://"):
         return url
     # Render/Heroku cấp URL dạng "postgres://" — chuẩn hóa về asyncpg.
