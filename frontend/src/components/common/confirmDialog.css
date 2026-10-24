@@ -1,0 +1,71 @@
+.cf-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: cf-fade 0.15s ease;
+}
+.cf-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 26px 24px 20px;
+  width: 380px;
+  max-width: 100%;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  text-align: center;
+  animation: cf-pop 0.18s ease;
+}
+.cf-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #2563eb;
+  margin-bottom: 14px;
+}
+.cf-icon--danger { background: #fef2f2; color: #dc2626; }
+.cf-message {
+  margin: 0 0 22px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #1e293b;
+  white-space: pre-line;
+}
+.cf-actions {
+  display: flex;
+  gap: 10px;
+}
+.cf-btn {
+  flex: 1;
+  border-radius: 9px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.cf-btn--ghost { background: #fff; border-color: #e5e7eb; color: #475569; }
+.cf-btn--ghost:hover { background: #f8fafc; border-color: #cbd5e1; }
+.cf-btn--danger { background: #dc2626; color: #fff; }
+.cf-btn--danger:hover { background: #b91c1c; }
+.cf-btn--primary { background: #1a56db; color: #fff; }
+.cf-btn--primary:hover { background: #1648b8; }
+
+@keyframes cf-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cf-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+
+/* ---- Dark mode ---- */
+[data-theme='dark'] .cf-modal { background: #1e293b; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); }
+[data-theme='dark'] .cf-message { color: #e2e8f0; }
+[data-theme='dark'] .cf-icon { background: rgba(37, 99, 235, 0.18); color: #93c5fd; }
+[data-theme='dark'] .cf-icon--danger { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
+[data-theme='dark'] .cf-btn--ghost { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+[data-theme='dark'] .cf-btn--ghost:hover { background: #334155; }

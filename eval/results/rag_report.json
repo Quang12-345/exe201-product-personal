@@ -1,0 +1,450 @@
+{
+  "summary": {
+    "total": 10,
+    "completed_runs": 10,
+    "failed_runs": 0,
+    "failure_rate": 0.0,
+    "in_scope": 8,
+    "out_of_scope": 2,
+    "response_non_empty": 10,
+    "response_non_empty_rate": 1.0,
+    "citation_matches": 5,
+    "citation_match_rate": 0.625,
+    "out_of_scope_refusals": 0,
+    "out_of_scope_refusal_rate": 0.0,
+    "avg_faithfulness": 0.817,
+    "avg_answer_relevancy": 0.875,
+    "avg_attempt_latency_ms": 10762,
+    "p50_attempt_latency_ms": 10357,
+    "p95_attempt_latency_ms": 15468,
+    "avg_latency_ms": 10762,
+    "p50_latency_ms": 10357,
+    "p95_latency_ms": 15468,
+    "avg_estimated_request_cost_usd": 0.00055413,
+    "p95_estimated_request_cost_usd": 0.0008049,
+    "total_estimated_request_cost_usd": 0.0055413,
+    "pricing_usd_per_million_tokens": {
+      "input_price_per_million": 0.15,
+      "output_price_per_million": 0.6,
+      "embedding_price_per_million": 0.02
+    }
+  },
+  "results": [
+    {
+      "question": "MECE là gì?",
+      "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf",
+      "type": "in-scope",
+      "response": "**MECE** là một nguyên tắc quan trọng trong phân tích dữ liệu, có nghĩa là **Mutually Exclusive and Collectively Exhaustive**. Nguyên tắc này giúp phân chia dữ liệu thành các phần không trùng lặp (mutually exclusive) nhưng vẫn bao quát toàn bộ vấn đề (collectively exhaustive), từ đó tạo ra một cái nhìn tổng quát và chính xác hơn về vấn đề cần phân tích [1].\n\n### **Lợi ích của MECE:**\n- **Cấu trúc rõ ràng**: MECE mang lại một cách tiếp cận có cấu trúc, giúp dễ dàng phân tích và trình bày thông tin.\n- **Không trùng lặp**: Giảm thiểu sự chồng chéo giữa các ý tưởng, giúp tiết kiệm thời gian và công sức.\n- **Bao quát toàn diện**: Đảm bảo rằng tất cả các khía cạnh của vấn đề đều được xem xét.\n- **Dễ dàng so sánh và ưu tiên**: Giúp xác định các yếu tố quan trọng cần giải quyết trước.\n\n### **Ví dụ áp dụng MECE:**\nTrong một trường hợp doanh nghiệp thương mại điện tử gặp phải tình trạng giảm doanh số, việc áp dụng MECE có thể chia nguyên nhân thành hai nhóm chính:\n- **Nguyên nhân từ khách hàng (External)**: Giảm giá trị đơn hàng trung bình, giảm tần suất mua hàng, giảm số lượng khách hàng.\n- **Nguyên nhân từ doanh nghiệp (Internal)**: Vấn đề về giá cả marketing, sản phẩm, tồn kho, chất lượng sản phẩm [2].\n\n### **So sánh với phương pháp khác:**\nMECE được coi là vượt trội hơn so với phương pháp brainstorming ngẫu nhiên, vì nó giúp tránh tình trạng chồng chéo và thiếu cấu trúc, từ đó giảm thiểu \"analysis paralysis\" (tình trạng phân tích quá mức) và tạo ra các bước hành động rõ ràng hơn [1].\n\n**Có thể bạn muốn hỏi:**\n- Làm thế nào để áp dụng MECE trong một dự án cụ thể?\n- Có những công cụ nào hỗ trợ việc phân tích theo nguyên tắc MECE?",
+      "sources": [
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "66f55680-6e0e-4a4b-9dd6-d7df3d399787",
+          "score": 0.45009395,
+          "quote": "Conversion rate giảm 2.8% xuống 1.5%, CTR chỉ 2.3% Scenario: E-commerce Sales giảm 20% Challenge: Vấn đề quá phức tạp Product categories Marketing channels Customer segments Phân tích từng component riêng biệt Xác định dependencies giữa các components Tạo action plan cho từng thành phần Tổng hợp insights để giải quyết vấn đề gốc Phương pháp: Divide and conquer\n\nNon-MECE example: Training, Validation, Overall performance (overlap giữa các category, không rõ ràng và có thể dẫn đến phân tích không ",
+          "cite": 1
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "454e89ea-4f35-4d81-b39b-229c475b396f",
+          "score": 0.37248835,
+          "quote": "là cách áp dụng MECE để phân tích vấn đề: Nguyên nhân từ khách hàng (External) Giảm giá trị đơn hàng trung bình Giảm tần suất mua hàng Giảm số lượng khách hàng Nguyên nhân từ doanh nghiệp (Internal) Vấn đề về giá cả marketing Vấn đề về sản Danh mục sản Tồn kho & Availability Chất lượng sản phẩm… …\n\nNGÀNH BÁN LẺ THEO MECE Một chuỗi cửa hàng bán lẻ gặp vấn đề sụt giảm doanh số 15% trong quý vừa qua. Ban lãnh đạo áp dụng nguyên tắc MECE để phân tích nguyên nhân: Nguyên nhân chính cần ưu tiên giải q",
+          "cite": 2
+        }
+      ],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 15468,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": true,
+      "faithfulness": 0.9,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 1592,
+        "completion_tokens": 455,
+        "total_tokens": 2047
+      },
+      "query_embedding_tokens_estimate": 5,
+      "estimated_request_cost_usd": 0.0005119
+    },
+    {
+      "question": "Logic tree được dùng để làm gì?",
+      "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf",
+      "type": "in-scope",
+      "response": "**Logic Tree** là một công cụ hữu ích trong việc **phân tích vấn đề** theo nguyên tắc MECE (Mutually Exclusive, Collectively Exhaustive). Dưới đây là một số ứng dụng chính của Logic Tree:\n\n- **Phân tích nguyên nhân**: Logic Tree giúp biểu diễn mối quan hệ nhân-quả từ vấn đề gốc đến các nhánh phụ một cách có hệ thống. Ví dụ, trong ngành bán lẻ, nó được sử dụng để phân tích nguyên nhân doanh số giảm, từ đó xác định các yếu tố như khách hàng, sản phẩm, và vận hành [2][3].\n\n- **Chia nhỏ vấn đề phức tạp**: Logic Tree cho phép chia nhỏ các vấn đề lớn thành các thành phần có thể quản lý được, giúp phân tích hiệu quả hơn. Điều này rất quan trọng trong việc xác định các vấn đề cần ưu tiên giải quyết [3].\n\n- **Ưu tiên giải pháp**: Khi đã xác định được các vấn đề, Logic Tree cũng hỗ trợ trong việc xác định thứ tự ưu tiên cho các giải pháp, đặc biệt khi nguồn lực hạn chế. Việc này giúp tối đa hóa tác động của các giải pháp được triển khai [1][2].\n\n- **Trực quan hóa thông tin**: Công cụ này giúp trình bày thông tin một cách trực quan, dễ hiểu, từ đó hỗ trợ các bên liên quan trong việc đưa ra quyết định [3].\n\nTóm lại, Logic Tree là một công cụ mạnh mẽ trong việc phân tích và giải quyết vấn đề, giúp tổ chức thông tin một cách có hệ thống và hiệu quả.\n\n**Có thể bạn muốn hỏi:**\n- Cách áp dụng Logic Tree trong một trường hợp cụ thể nào đó?\n- Các công cụ khác có thể sử dụng cùng với Logic Tree để phân tích vấn đề?",
+      "sources": [
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "f996fbb5-83da-4016-b211-5e92c54dcc02",
+          "score": 0.4193141,
+          "quote": "Mua cổ phiếuCó thể nhu cầu Chí phí biến đổi Chí phí cố định Phí thuê mặt bằng Hoa hồng hơn thị trường đi xuống lợi nhuận 5% lợi nhuận 10% Thuế Phí nguồn cung cấp bao bì khách hứng thú tặng quà Lạm phát mất 1% Thua lỗ 5%\n\nLOGIC TREE TRONG NGÀNH BÁN LẺ Case study: Chuỗi siêu thị FreshMart với 50 cửa hàng trên toàn quốc, áp dụng Logic Tree để phân tích nguyên nhân doanh số giảm 15% trong quý II/2023. Doanh số giảm Khách hàng Sản phẩm Vận hành Vấn đề danh mục và sản phẩm sẵn có Quality: Chất lượng s",
+          "cite": 1
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "454e89ea-4f35-4d81-b39b-229c475b396f",
+          "score": 0.47019976,
+          "quote": "là cách áp dụng MECE để phân tích vấn đề: Nguyên nhân từ khách hàng (External) Giảm giá trị đơn hàng trung bình Giảm tần suất mua hàng Giảm số lượng khách hàng Nguyên nhân từ doanh nghiệp (Internal) Vấn đề về giá cả marketing Vấn đề về sản Danh mục sản Tồn kho & Availability Chất lượng sản phẩm… …\n\nNGÀNH BÁN LẺ THEO MECE Một chuỗi cửa hàng bán lẻ gặp vấn đề sụt giảm doanh số 15% trong quý vừa qua. Ban lãnh đạo áp dụng nguyên tắc MECE để phân tích nguyên nhân: Nguyên nhân chính cần ưu tiên giải q",
+          "cite": 2
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "bf9adfbe-8d28-4626-8e30-40dbf9a4c7f3",
+          "score": 0.41375148,
+          "quote": "trận & lý do •Quyết Định Dựa Trên Dữ Liệu: Sử dụng số liệu, không phải ý kiến •Chiến Lược Thành Công Nhanh: Mang lại giá trị sớm •Đánh Giá Thường Xuyên: Đánh giá lại ưu tiên hàng tháng •Sự Đồng Thuận Của Các Bên Liên Quan: Đưa họ vào quá trình chấm điểm\n\nProblem Decomposition Chia nhỏ vấn đề phức tạp thành các thành phần có thể quản lý được để phân tích hiệu quả hơn. MECE Principle Đảm bảo phân tích toàn diện với nguyên tắc Mutually Exclusive, Collectively Exhaustive - tránh trùng lặp và bỏ sót ",
+          "cite": 3
+        }
+      ],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 10515,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 3228,
+        "completion_tokens": 379,
+        "total_tokens": 3607
+      },
+      "query_embedding_tokens_estimate": 8,
+      "estimated_request_cost_usd": 0.00071176
+    },
+    {
+      "question": "Tại sao tư duy logic lại quan trọng trong AI?",
+      "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf",
+      "type": "in-scope",
+      "response": "**Tư duy logic là một yếu tố quan trọng trong AI vì những lý do sau:**\n\n- **Xác định đúng vấn đề:** Tư duy logic giúp xác định và phân tích vấn đề một cách chính xác, từ đó phát triển các giải pháp AI mang lại giá trị thực sự cho doanh nghiệp. Việc xác định đúng vấn đề chiếm tới **80% thành công** trong các dự án AI, trong khi chỉ **20%** là do thuật toán [1][3].\n\n- **Giải quyết vấn đề phức tạp:** Tư duy logic cho phép phân tích đa chiều và không rập khuôn, giúp xây dựng các giải pháp AI sát thực tế và hiệu quả hơn. Điều này đặc biệt quan trọng trong việc tối ưu hóa nguồn lực và đảm bảo hiệu quả đầu tư [1][4].\n\n- **Tránh lãng phí nguồn lực:** Khi có tư duy logic, các nhà phát triển có thể phân biệt giữa các giải pháp thực sự hiệu quả và những giải pháp chỉ mang tính \"hype\". Điều này giúp tránh đầu tư sai hướng và lãng phí nguồn lực [1][3].\n\n- **Phân tích dữ liệu hiệu quả:** Tư duy logic cũng hỗ trợ trong việc thu thập và phân tích dữ liệu đúng cách, từ đó chuyển đổi giả định thành các giải pháp AI có căn cứ và hiệu quả [4][5].\n\n- **Thực hành và cải tiến liên tục:** Tư duy logic không chỉ là một kỹ năng cần thiết mà còn là một quá trình liên tục, yêu cầu thay đổi tư duy và luyện tập để áp dụng vào các dự án AI thực tế [2][4].\n\n**Tóm lại**, tư duy logic là chìa khóa thành công trong AI, giúp xác định đúng vấn đề, tối ưu hóa nguồn lực và phát triển các giải pháp hiệu quả.\n\n**Có thể bạn muốn hỏi:**\n- Những phương pháp nào có thể áp dụng để phát triển tư duy logic trong AI?\n- Làm thế nào để phân tích dữ liệu hiệu quả trong các dự án AI?",
+      "sources": [
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "d6c80f12-4521-44b1-977c-5fba125d0907",
+          "score": 0.6151533,
+          "quote": "LOGICAL THINKING & PROBLEM-SOLVING IN AI Lecturer: Nguyễn Thái Hà (Ph. D) Supporter: Nguyễn Anh Khoa (Ph. D Candidate)\n\nTại sao cần học Logical Thinking & Problem Solving? Tư duy logic không chỉ giúp xác định đúng vấn đề mà còn là nền tảng phát triển giải pháp AI mang lại giá trị kinh doanh thực sự trong thị trường Việt Nam. Tư duy logic và kỹ năng giải quyết vấn đề là nền tảng quan trọng giúp xử lý vấn đề phức tạp, tối ưu nguồn lực và đảm bảo hiệu quả đầu tư trong lĩnh vực AI. Giải quyết vấn đề",
+          "cite": 1
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "6c59730b-6274-4afc-82db-9153d09caf79",
+          "score": 0.6187083,
+          "quote": "trận Impact-Feasibility để ưu tiên hóa giải pháp. Phân Tích Dữ Liệu Từ thu thập đến đánh giá chất lượng dữ liệu theo khung ACCURATE, chúng ta đã thấy tầm quan trọng của dữ liệu đúng đắn, đầy đủ và phù hợp trong việc giải quyết vấn đề AI hiệu quả. Tổng kết\n\nLỜI KẾT Tư duy logic và giải quyết vấn đề trong AI đòi hỏi thay đổi tư duy căn bản do đó sẽ cần thời gian và luyện tập Thay đổi tư duy • Hiểu rõ các yếu tố dữ liệu và thuật toán thay vì xem \"AI là hộp đen kỳ diệu\" • Phân tích ROI cụ thể thay v",
+          "cite": 2
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "976d0544-a13b-4f7a-81a9-f2170fed09d8",
+          "score": 0.5820081,
+          "quote": "Tăng 25% doanh thu Thực tế Doanh thu chỉ tăng 3% Vấn đề ➢ Thuật toán không phù hợp? ➢ Dữ liệu khách hàng không chính xác? ➢ Hay cách tiếp cận không đúng với thị trường Việt Nam? Trong AI: 80% thành công là ở cách xác định và giải quyết vấn đề, chỉ 20% là thuật toán.\n\nAI ≠ Magic Black Box AI không tự động mang lại kết quả kỳ diệu. Case study chuỗi siêu thị V minh họa: đầu tư 2 tỷ vào AI recommendation chỉ tăng 3% doanh thu thay vì 25% do thiếu tư duy logic và phương pháp tiếp cận hệ thống. Garbag",
+          "cite": 3
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "bf9adfbe-8d28-4626-8e30-40dbf9a4c7f3",
+          "score": 0.582744,
+          "quote": "trận & lý do •Quyết Định Dựa Trên Dữ Liệu: Sử dụng số liệu, không phải ý kiến •Chiến Lược Thành Công Nhanh: Mang lại giá trị sớm •Đánh Giá Thường Xuyên: Đánh giá lại ưu tiên hàng tháng •Sự Đồng Thuận Của Các Bên Liên Quan: Đưa họ vào quá trình chấm điểm\n\nProblem Decomposition Chia nhỏ vấn đề phức tạp thành các thành phần có thể quản lý được để phân tích hiệu quả hơn. MECE Principle Đảm bảo phân tích toàn diện với nguyên tắc Mutually Exclusive, Collectively Exhaustive - tránh trùng lặp và bỏ sót ",
+          "cite": 4
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "7d160020-6aa7-4a74-857d-111d5b9e3775",
+          "score": 0.49465144,
+          "quote": "êu Why 2: Tại sao tỷ lệ chuyển đổi thấp? Vì thông điệp quảng cáo không phù hợp với đối tượng mục tiêu Why 1: Tại sao chiến dịch marketing không đạt KPI? Vì tỷ lệ chuyển đổi (conversion rate) quá thấp Giải pháp: Xây dựng hệ thống AI phân tích hành vi người dùng\n\nHẠN CHẾ CỦA 5 WHYS Phương pháp 5 Whys có ba hạn chế chính: tư duy một chiều, thiên kiến xác nhận và thiếu dữ liệu. Khắc phục bằng cách kết hợp phân tích dữ liệu, xem xét đa giả thuyết và đa dạng hóa team. Best Practice: 5 Whys + Data = St",
+          "cite": 5
+        }
+      ],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 10386,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 2962,
+        "completion_tokens": 423,
+        "total_tokens": 3385
+      },
+      "query_embedding_tokens_estimate": 12,
+      "estimated_request_cost_usd": 0.00069834
+    },
+    {
+      "question": "Logical thinking in AI là gì?",
+      "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf",
+      "type": "in-scope",
+      "response": "**Logical thinking in AI** (tư duy logic trong AI) là một khái niệm quan trọng giúp xác định và giải quyết các vấn đề phức tạp trong lĩnh vực trí tuệ nhân tạo. Dưới đây là một số điểm chính về tư duy logic trong AI:\n\n- **Xác định đúng vấn đề**: Tư duy logic giúp người làm trong lĩnh vực AI nhận diện và định nghĩa chính xác vấn đề cần giải quyết, điều này chiếm đến **80% thành công** của các dự án AI [1][2].\n\n- **Phân tích đa chiều**: Tư duy logic cho phép phân tích vấn đề từ nhiều góc độ khác nhau, không chỉ dựa vào các thuật toán mà còn xem xét hành vi và nhu cầu của người dùng [1][3].\n\n- **Tối ưu hóa nguồn lực**: Việc áp dụng tư duy logic giúp tiết kiệm thời gian và chi phí triển khai, đồng thời đảm bảo rằng các giải pháp AI mang lại giá trị thực sự cho doanh nghiệp [1][4].\n\n- **Tránh \"AI Hype\"**: Tư duy logic giúp phân biệt giữa các giải pháp AI thực sự hiệu quả và những giải pháp không mang lại giá trị, từ đó tránh lãng phí nguồn lực [1][2].\n\n- **Quy trình giải quyết vấn đề**: Tư duy logic trong AI thường được áp dụng thông qua một quy trình có hệ thống, bao gồm các bước như xác định vấn đề, thu thập và phân tích dữ liệu, đề xuất giải pháp, và triển khai [4][5].\n\nTóm lại, **tư duy logic là chìa khóa thành công trong các dự án AI**, giúp tối ưu hóa quy trình và nâng cao hiệu quả đầu tư.\n\n**Có thể bạn muốn hỏi:**\n- Các bước cụ thể trong quy trình giải quyết vấn đề trong AI là gì?\n- Làm thế nào để cải thiện tư duy logic trong các dự án AI?",
+      "sources": [
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "d6c80f12-4521-44b1-977c-5fba125d0907",
+          "score": 0.6104004,
+          "quote": "LOGICAL THINKING & PROBLEM-SOLVING IN AI Lecturer: Nguyễn Thái Hà (Ph. D) Supporter: Nguyễn Anh Khoa (Ph. D Candidate)\n\nTại sao cần học Logical Thinking & Problem Solving? Tư duy logic không chỉ giúp xác định đúng vấn đề mà còn là nền tảng phát triển giải pháp AI mang lại giá trị kinh doanh thực sự trong thị trường Việt Nam. Tư duy logic và kỹ năng giải quyết vấn đề là nền tảng quan trọng giúp xử lý vấn đề phức tạp, tối ưu nguồn lực và đảm bảo hiệu quả đầu tư trong lĩnh vực AI. Giải quyết vấn đề",
+          "cite": 1
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "976d0544-a13b-4f7a-81a9-f2170fed09d8",
+          "score": 0.5470363,
+          "quote": "Tăng 25% doanh thu Thực tế Doanh thu chỉ tăng 3% Vấn đề ➢ Thuật toán không phù hợp? ➢ Dữ liệu khách hàng không chính xác? ➢ Hay cách tiếp cận không đúng với thị trường Việt Nam? Trong AI: 80% thành công là ở cách xác định và giải quyết vấn đề, chỉ 20% là thuật toán.\n\nAI ≠ Magic Black Box AI không tự động mang lại kết quả kỳ diệu. Case study chuỗi siêu thị V minh họa: đầu tư 2 tỷ vào AI recommendation chỉ tăng 3% doanh thu thay vì 25% do thiếu tư duy logic và phương pháp tiếp cận hệ thống. Garbag",
+          "cite": 2
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "6c59730b-6274-4afc-82db-9153d09caf79",
+          "score": 0.58825254,
+          "quote": "trận Impact-Feasibility để ưu tiên hóa giải pháp. Phân Tích Dữ Liệu Từ thu thập đến đánh giá chất lượng dữ liệu theo khung ACCURATE, chúng ta đã thấy tầm quan trọng của dữ liệu đúng đắn, đầy đủ và phù hợp trong việc giải quyết vấn đề AI hiệu quả. Tổng kết\n\nLỜI KẾT Tư duy logic và giải quyết vấn đề trong AI đòi hỏi thay đổi tư duy căn bản do đó sẽ cần thời gian và luyện tập Thay đổi tư duy • Hiểu rõ các yếu tố dữ liệu và thuật toán thay vì xem \"AI là hộp đen kỳ diệu\" • Phân tích ROI cụ thể thay v",
+          "cite": 3
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "2a99443c-af8b-4975-91c5-2649ba6e10ff",
+          "score": 0.50702894,
+          "quote": "nh quan trọng nào. Xây dựng Impact-Feasibility Matrix Ưu tiên các giải pháp AI dựa trên dữ liệu và tác động thực tế đến doanh nghiệp. Thiết kế phương pháp thu thập dữ liệu Phù hợp cho từng loại vấn đề AI, đảm bảo chất lượng và độ tin cậy của dữ liệu. LEARNING OBJECTIVES\n\n85% Dự án AI thất bại Nguyên nhân: Định nghĩa vấn đề không rõ (Problem definition), dữ liệu không phù hợp, Thiếu hạ tầng & đầu tư dài hạn 1 3.7x ROI trung bình Các dự án Agentic AI áp dụng structured problem-solving (theo nghiên",
+          "cite": 4
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "7d160020-6aa7-4a74-857d-111d5b9e3775",
+          "score": 0.50302804,
+          "quote": "êu Why 2: Tại sao tỷ lệ chuyển đổi thấp? Vì thông điệp quảng cáo không phù hợp với đối tượng mục tiêu Why 1: Tại sao chiến dịch marketing không đạt KPI? Vì tỷ lệ chuyển đổi (conversion rate) quá thấp Giải pháp: Xây dựng hệ thống AI phân tích hành vi người dùng\n\nHẠN CHẾ CỦA 5 WHYS Phương pháp 5 Whys có ba hạn chế chính: tư duy một chiều, thiên kiến xác nhận và thiếu dữ liệu. Khắc phục bằng cách kết hợp phân tích dữ liệu, xem xét đa giả thuyết và đa dạng hóa team. Best Practice: 5 Whys + Data = St",
+          "cite": 5
+        }
+      ],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 9651,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 3030,
+        "completion_tokens": 408,
+        "total_tokens": 3438
+      },
+      "query_embedding_tokens_estimate": 7,
+      "estimated_request_cost_usd": 0.00069944
+    },
+    {
+      "question": "Gemini Live API hỗ trợ những tính năng chính nào?",
+      "expected_document": "google_prompt.pdf",
+      "type": "in-scope",
+      "response": "Tài liệu hiện có chưa đề cập nội dung này. Bạn có thể cung cấp thêm thông tin hoặc diễn đạt câu hỏi khác để tôi có thể hỗ trợ tốt hơn! \n\n**Có thể bạn muốn hỏi:**\n- Gemini Live API có những ứng dụng nào trong lĩnh vực AI?\n- Các API khác hỗ trợ thu thập dữ liệu cho AI là gì?",
+      "sources": [],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 6464,
+      "response_non_empty": true,
+      "citation_match": false,
+      "out_of_scope_refusal": true,
+      "faithfulness": null,
+      "answer_relevancy": 0.0,
+      "llm_usage": {
+        "prompt_tokens": 929,
+        "completion_tokens": 74,
+        "total_tokens": 1003
+      },
+      "query_embedding_tokens_estimate": 12,
+      "estimated_request_cost_usd": 0.00018399
+    },
+    {
+      "question": "Theo Google, nên cấu trúc prompt như thế nào cho hiệu quả?",
+      "expected_document": "google_prompt.pdf",
+      "type": "in-scope",
+      "response": "**Cấu trúc prompt hiệu quả theo Google** có thể được xây dựng dựa trên nguyên tắc đặt câu hỏi đúng, đặc biệt trong các dự án AI và phân tích dữ liệu. Dưới đây là một số điểm chính cần lưu ý:\n\n### 1. **Tầm quan trọng của việc đặt câu hỏi đúng**\n- **Tiết kiệm thời gian và chi phí**: Một câu hỏi đúng có thể giúp tiết kiệm hàng tháng trời làm việc và hàng tỷ đồng đầu tư vào các giải pháp không phù hợp [1].\n- **Định hướng rõ ràng**: Câu hỏi đúng dẫn đến KPI chuẩn, giúp đánh giá chính xác hiệu quả giải pháp và xác định dữ liệu cần thiết [1].\n\n### 2. **Phương pháp 5W1H**\nSử dụng phương pháp 5W1H (What, Who, Where, When, Why, How) để xác định vấn đề một cách toàn diện:\n- **What**: Vấn đề cụ thể là gì? KPIs nào bị ảnh hưởng?\n- **Who**: Ai là các bên liên quan? Ai bị ảnh hưởng nhiều nhất?\n- **Where**: Vấn đề xảy ra ở đâu? Có mẫu địa lý nào không?\n- **When**: Khi nào vấn đề bắt đầu? Có pattern theo thời gian không?\n- **Why**: Tại sao vấn đề này quan trọng? Hậu quả nếu không giải quyết?\n- **How**: Hiện tại đang giải quyết như thế nào? Các giải pháp đã thử và hiệu quả ra sao? [1].\n\n### 3. **Cấu trúc câu hỏi**\n- **Câu hỏi nên rõ ràng và cụ thể**: Tránh những câu hỏi mơ hồ, không rõ ràng.\n- **Tập trung vào mục tiêu**: Đảm bảo rằng câu hỏi hướng đến việc tìm ra nguyên nhân gốc rễ và không chỉ giải quyết triệu chứng bề mặt [1].\n\n### 4. **Kỹ thuật bổ sung**\n- **Brainstorming có cấu trúc**: Tạo ra nhiều ý tưởng đa dạng từ các góc nhìn khác nhau [2].\n- **Kỹ thuật SCAMPER**: Biến đổi các giải pháp hiện có theo nhiều cách khác nhau để phát triển ý tưởng [2].\n\n### 5. **Đánh giá và điều chỉnh**\n- **Kiểm tra và điều chỉnh**: Sau khi đặt câu hỏi, cần kiểm tra tính khả thi và hiệu quả của các giải pháp đã đề xuất [3].\n\n### Tóm lại\nCấu trúc prompt hiệu quả nên bắt đầu từ việc đặt câu hỏi đúng, sử dụng phương pháp 5W1H để đảm bảo toàn diện, và áp dụng các kỹ thuật bổ sung để phát triển ý tưởng và giải pháp.\n\n**Có thể bạn muốn hỏi:**\n- Làm thế nào để xác định các KPI phù hợp cho dự án AI?\n- Các phương pháp nào khác có thể sử dụng để thu thập dữ liệu cho AI?",
+      "sources": [
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "55921a6e-6a2a-4169-97dc-05aa2ab9efb1",
+          "score": 0.4856401,
+          "quote": "phù hợp với nguyên nhân gốc rễ \"Cần xây dựng hệ thống AI dự đoán khách hàng rời bỏ\" \"Tỷ lệ khách hàng rời bỏ tăng 15% trong quý vừa qua, làm giảm doanh thu 2 tỷ đồng\" Xác định vấn đề KHÔNG đúng Xác định vấn đề ĐÚNG\n\nTẦM QUAN TRỌNG CỦA VIỆC ĐẶT CÂU HỎI ĐÚNG Đặt câu hỏi đúng là bước đầu tiên và quan trọng nhất trong quá trình xác định vấn đề, đặc biệt trong các dự án AI và phân tích dữ liệu. ➢ Một câu hỏi đúng có thể tiết kiệm hàng tháng trời làm việc và hàng tỷ đồng đầu tư vào các giải pháp không",
+          "cite": 1
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "b5cdadc9-1211-49f9-b815-a2df44f36a24",
+          "score": 0.47185153,
+          "quote": "trình triển khai ROI dự kiến \"Từ dữ liệu đến quyết định\"- Phân tích dữ liệu cho thấy các yếu tố mùa vụ và xu hướng thị trường ảnh hưởng lớn đến nhu cầu sản phẩm, đây là insight chính để giảm tồn kho 25% và tăng tỷ lệ đáp ứng nhu cầu từ 85% lên 97%.\n\nBrainstorming có cấu trúc Các nhóm đa ngành, Quy tắc không phê bình trong quá trình tạo ra ý tưởng, Phân loại ý tưởng theo MECE. Phương pháp này giúp tạo ra nhiều ý tưởng đa dạng từ các góc nhìn khác nhau. Kỹ thuật SCAMPER Thay thế, Kết hợp, Điều chỉ",
+          "cite": 2
+        },
+        {
+          "document_id": "a7a3ca71-248a-413f-9b0c-2f5036b83d81",
+          "title": "Logical Thinking And Problem Solving In Ai",
+          "page_number": 1,
+          "section_title": "Document",
+          "chunk_id": "23c837b1-ba50-48ae-ae73-a12141a626fe",
+          "score": 0.5156969,
+          "quote": "p quan trọng để thiết kế giải pháp AI hiệu quả: brainstorming có cấu trúc tạo ra ý tưởng đa dạng, kỹ thuật SCAMPER biến đổi giải pháp hiện có, đối sánh chuẩn học hỏi từ thực tiễn tốt nhất, và xây dựng nguyên mẫu nhanh để kiểm tra tính khả thi.\n\nPhương pháp tư vấn hiệu quả cho dự án AI gồm 5 bước: dựa trên giả thuyết, xác thực dữ liệu, đánh giá đa tiêu chí, đảm bảo đồng thuận và xây dựng lộ trình triển khai rõ ràng. Phương pháp của các công ty Consulting lớn Dựa trên giả thuyết Bắt đầu với giả th",
+          "cite": 3
+        }
+      ],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 14111,
+      "response_non_empty": true,
+      "citation_match": false,
+      "out_of_scope_refusal": true,
+      "faithfulness": 1.0,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 2872,
+        "completion_tokens": 623,
+        "total_tokens": 3495
+      },
+      "query_embedding_tokens_estimate": 15,
+      "estimated_request_cost_usd": 0.0008049
+    },
+    {
+      "question": "Affective Dialog trong Live API là gì?",
+      "expected_document": "google_prompt.pdf",
+      "type": "in-scope",
+      "response": "**Affective Dialog trong Live API** là một tính năng cho phép mô hình hiểu và phản hồi một cách phù hợp với các biểu hiện cảm xúc của người dùng, từ đó tạo ra những cuộc trò chuyện tinh tế hơn. Khi tính năng này được kích hoạt (enable_affective_dialog=True), mô hình có thể nhận diện cảm xúc của người dùng và điều chỉnh phản hồi của mình để thể hiện sự đồng cảm và hỗ trợ.\n\n### Cách hoạt động của Affective Dialog:\n- **Cấu hình**: Tính năng này được cấu hình thông qua `affective_config`, trong đó có thể định nghĩa một persona cho mô hình, ví dụ như \"senior technical advisor\" để mô hình có thể phản hồi một cách chuyên nghiệp và hữu ích hơn.\n- **Ví dụ**: Nếu người dùng thể hiện sự thất vọng, mô hình sẽ phản hồi một cách đồng cảm, như trong ví dụ sau:\n  - Người dùng: \"Tôi đã nhìn vào tài liệu API này hai giờ rồi! Nó thật khó hiểu và tôi không biết bắt đầu từ đâu.\"\n  - Mô hình: Phản hồi với sự đồng cảm và hướng dẫn cụ thể để giúp người dùng vượt qua khó khăn đó [1].\n\n### Lợi ích:\n- **Tăng cường trải nghiệm người dùng**: Affective Dialog giúp tạo ra những cuộc trò chuyện tự nhiên và gần gũi hơn, làm cho người dùng cảm thấy được lắng nghe và hỗ trợ.\n- **Phản hồi phù hợp**: Mô hình có thể điều chỉnh phản hồi dựa trên cảm xúc của người dùng, từ đó cải thiện hiệu quả giao tiếp.\n\nNếu bạn cần thêm thông tin về cách cấu hình hoặc sử dụng Affective Dialog trong Live API, hãy cho tôi biết nhé!\n\n**Có thể bạn muốn hỏi:**\n- Làm thế nào để cấu hình Affective Dialog trong Live API?\n- Những tình huống nào nên sử dụng Affective Dialog?",
+      "sources": [
+        {
+          "document_id": "4e10bfb4-3518-4926-bf72-3893ba6861ee",
+          "title": "Google Prompt",
+          "page_number": null,
+          "section_title": "Define google search tool tools = {\"google_search\": {}} setup = {\"setup\": {\"model\": model, \"generation_config\": config, \"tools\": tools}} async def main() -> None: async with websockets.connect(service_url, additional_headers=headers) as ws: print(\"Connected\") await ws.send(json.dumps(setup)) await ws.recv() async def send_loop(): await send_text(ws, \"What is the current weather in Toronto, Canada? \") audio_data = [] async def receive_loop(): async for message in ws: response = json.loads(message.decode()) try: parts = response[\"serverContent\"][\"modelTurn\"][\"parts\"] for part in parts: if \"inlineData\" in part: pcm_data = base64.b64decode(part[\"inlineData\"][\"data\"]) audio_data.append(np.frombuffer(pcm_data, dtype=np.int16)) except KeyError: pass if response.get(\"serverContent\", {}).get(\"turnComplete\"): print(\"Turn complete.\") display( Audio(np.concatenate(audio_data), rate=24000, autoplay=True) ) break # Exit the loop await asyncio.gather(send_loop(), receive_loop()) await main()",
+          "chunk_id": "b9aebc75-aa53-40cc-9c29-7b02f3b31ecd",
+          "score": 0.41873622,
+          "quote": "silent. \"Hey, I was just thinking about my dinner plans. I really love cooking.\", # Speaker B speaks, off-topic (French cuisine). The model should be silent. \"Oh yes, me too. I love French cuisine, especially making a good coq au vin. I think\n\nI'll\n\nmake\n\ntonight.\", # Speaker A speaks, shifts to Italian topic. The model should chime in. \"Hmm, that sounds complicated. I prefer Italian food. Say, do you know how to make\n\na\n\nsimple\n\nMargherita\n\npizza\n\nrecipe? \", ]\n\nAffective Dialog When affective d",
+          "cite": 1
+        }
+      ],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 11631,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": true,
+      "faithfulness": 0.0,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 3210,
+        "completion_tokens": 397,
+        "total_tokens": 3607
+      },
+      "query_embedding_tokens_estimate": 9,
+      "estimated_request_cost_usd": 0.00071988
+    },
+    {
+      "question": "Có những cách nào để xử lý dữ liệu mất cân bằng trong phân loại?",
+      "expected_document": "ML_cheatsheets.pdf",
+      "type": "in-scope",
+      "response": "**Cách xử lý dữ liệu mất cân bằng trong phân loại** không được đề cập trực tiếp trong tài liệu hiện có. Tuy nhiên, có một số phương pháp phổ biến mà bạn có thể tham khảo:\n\n1. **Tăng cường dữ liệu (Data Augmentation)**: Tạo thêm mẫu cho lớp thiểu số bằng cách biến đổi các mẫu hiện có, như xoay, lật, hoặc thay đổi độ sáng.\n\n2. **Giảm mẫu (Downsampling)**: Giảm số lượng mẫu trong lớp chiếm ưu thế để cân bằng với lớp thiểu số.\n\n3. **Tăng mẫu (Upsampling)**: Tăng số lượng mẫu trong lớp thiểu số bằng cách sao chép hoặc tạo mẫu mới.\n\n4. **Sử dụng thuật toán học máy nhạy cảm với mất cân bằng**: Một số thuật toán như Random Forest hoặc Gradient Boosting có thể điều chỉnh để xử lý dữ liệu mất cân bằng tốt hơn.\n\n5. **Chiến lược trọng số (Class Weighting)**: Gán trọng số cao hơn cho lớp thiểu số trong quá trình huấn luyện để mô hình chú ý hơn đến lớp này.\n\n6. **Sử dụng kỹ thuật tổng hợp (Synthetic Data Generation)**: Sử dụng các phương pháp như SMOTE (Synthetic Minority Over-sampling Technique) để tạo ra các mẫu mới cho lớp thiểu số.\n\nTài liệu hiện tại không cung cấp thông tin chi tiết về các phương pháp này, nhưng bạn có thể tìm hiểu thêm về từng phương pháp để áp dụng vào bài toán của mình.\n\n**Có thể bạn muốn hỏi:**\n- Các thuật toán nào phù hợp nhất cho dữ liệu mất cân bằng?\n- Làm thế nào để đánh giá hiệu suất của mô hình trên dữ liệu mất cân bằng?",
+      "sources": [],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 9140,
+      "response_non_empty": true,
+      "citation_match": false,
+      "out_of_scope_refusal": true,
+      "faithfulness": null,
+      "answer_relevancy": 1.0,
+      "llm_usage": {
+        "prompt_tokens": 2648,
+        "completion_tokens": 364,
+        "total_tokens": 3012
+      },
+      "query_embedding_tokens_estimate": 16,
+      "estimated_request_cost_usd": 0.00061592
+    },
+    {
+      "question": "Thủ đô của nước Pháp là gì?",
+      "expected_document": null,
+      "type": "out-of-scope",
+      "response": "Tài liệu hiện có chưa đề cập nội dung này. Tuy nhiên, tôi có thể cho bạn biết rằng thủ đô của nước Pháp là Paris. Nếu bạn có câu hỏi khác hoặc muốn tìm hiểu thêm về Paris hay nước Pháp, hãy cho tôi biết nhé!",
+      "sources": [],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 10357,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": false,
+      "faithfulness": null,
+      "answer_relevancy": null,
+      "llm_usage": {
+        "prompt_tokens": 559,
+        "completion_tokens": 55,
+        "total_tokens": 614
+      },
+      "query_embedding_tokens_estimate": 10,
+      "estimated_request_cost_usd": 0.00011705
+    },
+    {
+      "question": "Giá vàng hôm nay bao nhiêu một lượng?",
+      "expected_document": null,
+      "type": "out-of-scope",
+      "response": "Tài liệu hiện có chưa đề cập nội dung này. Bạn có thể thử hỏi về các yếu tố ảnh hưởng đến giá vàng hoặc cách thức đầu tư vào vàng nếu bạn muốn tìm hiểu thêm!",
+      "sources": [],
+      "agent_status": "completed",
+      "agent_error": null,
+      "latency_ms": 9903,
+      "response_non_empty": true,
+      "citation_match": true,
+      "out_of_scope_refusal": false,
+      "faithfulness": null,
+      "answer_relevancy": null,
+      "llm_usage": {
+        "prompt_tokens": 3026,
+        "completion_tokens": 40,
+        "total_tokens": 3066
+      },
+      "query_embedding_tokens_estimate": 11,
+      "estimated_request_cost_usd": 0.00047812
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+/* IconSelect: dropdown chọn-một có badge icon màu cho từng giá trị.
+   CSS co-located với component để dùng được ở mọi layout (admin/lecturer/student). */
+.dmrs-iselect { position: relative; }
+.dmrs-iselect-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 172px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  border-radius: 9px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #334155;
+  cursor: pointer;
+  outline: none;
+}
+.dmrs-iselect-trigger:hover { border-color: #cbd5e1; }
+.dmrs-iselect.is-open .dmrs-iselect-trigger {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.dmrs-iselect-text {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dmrs-iselect-caret { color: #94a3b8; flex-shrink: 0; transition: transform 0.15s ease; }
+.dmrs-iselect.is-open .dmrs-iselect-caret { transform: rotate(180deg); }
+
+.dmrs-iselect-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: #fff;
+  flex-shrink: 0;
+  background: var(--badge, #94a3b8);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--badge, #94a3b8) 68%, #fff),
+    var(--badge, #94a3b8)
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.dmrs-iselect-badge--muted {
+  background: #eef2f7;
+  background-image: none;
+  color: #94a3b8;
+  box-shadow: none;
+}
+
+.dmrs-iselect-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 248px;
+  max-width: 320px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+}
+.dmrs-iselect-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  margin-bottom: 4px;
+  border-radius: 9px;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.dmrs-iselect-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: #334155;
+}
+.dmrs-iselect-empty {
+  margin: 6px 4px;
+  font-size: 13px;
+  color: #94a3b8;
+  text-align: center;
+}
+.dmrs-iselect-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+}
+.dmrs-iselect-opt:hover { background: #f1f5f9; }
+.dmrs-iselect-opt.is-active { background: #eff4ff; color: var(--color-primary); font-weight: 600; }
+.dmrs-iselect-opt-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dmrs-iselect-check { color: var(--color-primary); flex-shrink: 0; }
+
+/* IconSelect đặt trong thẻ filter có nhãn (.dmrs-select) → bỏ viền trigger */
+.dmrs-select .dmrs-iselect { width: 100%; }
+.dmrs-select .dmrs-iselect-trigger {
+  border: none;
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+}
+.dmrs-select .dmrs-iselect.is-open .dmrs-iselect-trigger { box-shadow: none; }
+
+/* Dùng trong form field (vd chọn môn học khi tải tài liệu lên) — chiếm trọn chiều ngang */
+.dmrs-field-select,
+.dmrs-field-select .dmrs-iselect-trigger { width: 100%; }
+.dmrs-field-select .dmrs-iselect-trigger { min-width: 0; padding: 9px 12px; }
+
+@media (max-width: 768px) {
+  .dmrs-iselect {
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 100%;
+  }
+  .dmrs-iselect-trigger {
+    min-width: 0;
+    width: 100%;
+    min-height: 40px;
+    padding: 5px 10px;
+  }
+  .dmrs-iselect-badge {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+  .dmrs-iselect-menu {
+    min-width: 100%;
+    max-width: none;
+    max-height: 300px;
+  }
+}

@@ -1,0 +1,269 @@
+================================================================================
+ EVAL EVIDENCE — KIỂM THỬ THỦ CÔNG (MANUAL TEST CASES) CHATBOT RAG
+ Dự án: AI20K / C2-App-142  —  Hệ thống Hỏi-Đáp tài liệu (RAG Agent)
+================================================================================
+
+Người thực hiện : hoangvananhgithub@gmail.com
+Ngày thực hiện  : 2026-06-17
+Nhánh git       : vananh-dev
+Phạm vi đánh giá: Backend RAG Agent (truy hồi + sinh câu trả lời + trích nguồn),
+                  phân quyền theo vai trò (RBAC), và kiểm thử tự động (pytest).
+Yêu cầu báo cáo : "Eval evidences — ít nhất 5 test case manual với output thực tế".
+
+--------------------------------------------------------------------------------
+0. TÓM TẮT NHANH (EXECUTIVE SUMMARY)
+--------------------------------------------------------------------------------
+- Đã chạy THẬT 7 test case thủ công end-to-end trên RAG Agent (vượt yêu cầu ≥5).
+- Kết quả: 7/7 test case ĐẠT (PASS) so với kỳ vọng.
+    * 4 câu trong phạm vi (in-scope): trả lời đúng, CÓ trích dẫn nguồn + số trang.
+    * 1 câu ngoài phạm vi (out-of-scope): từ chối đúng cách.
+    * 1 câu bẫy bịa đặt (anti-hallucination): từ chối, KHÔNG bịa số liệu.
+    * 1 câu input rỗng (validation): chặn đúng tại bước kiểm tra đầu vào.
+- Kiểm thử tự động: 100/100 test PASS (pytest), thời gian 2.75s.
+- Dữ liệu nền tại thời điểm test: 2 tài liệu, 77 chunk (đồng bộ DB ↔ Qdrant).
+
+--------------------------------------------------------------------------------
+1. MÔI TRƯỜNG & CẤU HÌNH KIỂM THỬ (REPRODUCIBILITY)
+--------------------------------------------------------------------------------
+- Python        : 3.11.15 (conda env: venv)
+- LLM           : OpenAI gpt-4o-mini (LLM_TEMPERATURE=0.2)
+- Embedding     : OpenAI text-embedding-3-small (dim 1536)
+- Vector store  : Qdrant Cloud, collection = "project-db"
+- Database      : PostgreSQL (asyncpg) — đang chạy, dùng user thật đã seed
+- Ngưỡng RAG    : rag_min_score = 0.4 (chunk có điểm < 0.4 bị loại để chống bịa)
+- Kiến trúc Agent (LangGraph), luồng node:
+    validate_input -> save_user_message -> embed_query -> retrieve_context
+                   -> generate_answer -> save_assistant_message
+  (Nếu validate_input báo lỗi -> nhảy thẳng tới generate_answer để trả thông báo lỗi.)
+
+Trạng thái dữ liệu nền (kiểm chứng trực tiếp trên hệ thống):
+    COLLECTION: project-db | rag_min_score: 0.4
+    QDRANT points_count: 77
+    DB chunks: 77 | DB docs: 2
+  => Số vector trên Qdrant = số chunk trong Postgres (77 = 77): dữ liệu ĐỒNG BỘ.
+
+Tài liệu đang nạp trong hệ thống (scope=school, category=regulation):
+  (1) "QC Đào tạo Đại học hệ chính quy theo hệ thống tín chỉ" (VU_HT03.VN,
+      Phòng Quản lý Đào tạo, phát hành 30/10/2024, 34 trang) — 75 chunk.
+  (2) "Quy định Tốt nghiệp" (.docx) — 2 chunk.
+
+Người dùng thật dùng để test (đã seed trong DB):
+  - admin   : admin@ai20k.vn     (id 7f3658d4-...-a76e)
+  - student : student@ai20k.vn   (id 4dcd1a8f-...-1640c1d)
+  - lecturer: lecturer@ai20k.vn  (id ffe9e728-...-3598a0)
+
+Cách gọi (mỗi test case = 1 lần agent.ainvoke với query/role/user_id thật):
+    result = await agent.ainvoke({
+        "query": <câu hỏi>, "conversation_id": None, "top_k": 5,
+        "user_id": <id user thật>, "user_role": <admin|student|lecturer>,
+    })
+Đo: latency (ms), danh sách sources (title + page), nội dung câu trả lời.
+
+--------------------------------------------------------------------------------
+2. TIÊU CHÍ ĐÁNH GIÁ (PASS/FAIL)
+--------------------------------------------------------------------------------
+- In-scope      : trả lời đúng nội dung tài liệu VÀ có trích dẫn nguồn (sources ≠ rỗng,
+                  trong câu trả lời có đánh số [1],[2],...).
+- Out-of-scope  : phải TỪ CHỐI ("Không đủ dữ liệu trong tài liệu đã nạp"), sources rỗng.
+- Anti-hallucination: với câu hỏi liên quan chủ đề nhưng tài liệu KHÔNG có dữ liệu,
+                  hệ thống phải từ chối, TUYỆT ĐỐI không bịa số liệu.
+- Invalid input : input rỗng/khoảng trắng phải bị chặn ngay với thông báo lỗi rõ ràng.
+
+================================================================================
+3. CHI TIẾT CÁC TEST CASE THỦ CÔNG (KÈM OUTPUT THỰC TẾ)
+================================================================================
+
+................................................................................
+TC-01  |  Loại: IN-SCOPE  |  Vai trò: student  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Câu hỏi đúng phạm vi tài liệu tốt nghiệp phải trả lời đúng + trích nguồn.
+Input    : "Điều kiện để được xét tốt nghiệp là gì?"
+Kỳ vọng  : Liệt kê điều kiện xét tốt nghiệp; có nguồn trỏ tới "Quy định Tốt nghiệp".
+
+OUTPUT THỰC TẾ:
+  latency = 11486 ms
+  sources = [{title: "0Bb29Dcf Quy Dinh Tot Nghiep", page: None}]
+  ANSWER:
+    **Điều kiện để được xét tốt nghiệp tại VinUni bao gồm:**
+    - **Hoàn thành số tín chỉ tối thiểu** trong thời gian đào tạo quy định của
+      chương trình.
+    - **Hoàn thành các yêu cầu** về Giáo dục Đại cương/VinCore và năng lực tiếng Anh.
+    - **Hoàn tất toàn bộ các môn học bắt buộc** của ngành đào tạo theo quy định của
+      từng Khoa.
+    - **Xử lý toàn bộ điểm "I – Chưa hoàn thành"** đối với các môn học bắt buộc.
+    - **Đạt GPA tích lũy tối thiểu 2.00/4.00**.
+    - **Không vi phạm pháp luật** hoặc có án tích hình sự cho đến thời điểm xét TN.
+    - **Đáp ứng các quy định và yêu cầu khác** của Nhà trường [1].
+
+Nhận xét : ĐẠT. Trả lời bám sát tài liệu, có trích dẫn [1] và nguồn rõ ràng.
+
+................................................................................
+TC-02  |  Loại: IN-SCOPE  |  Vai trò: student  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Truy hồi đúng điều khoản trong Quy chế + tổng hợp nhiều chunk (đa nguồn).
+Input    : "Khi nào sinh viên bị cảnh báo kết quả học tập hoặc buộc thôi học?"
+Kỳ vọng  : Nêu các ngưỡng GPA/tín chỉ; nguồn trỏ tới Quy chế đào tạo (trang 17).
+
+OUTPUT THỰC TẾ:
+  latency = 10068 ms
+  sources = [
+     {title: "...QC Dao Tao...Tin Chi 30102024", page: 17},
+     {title: "...QC Dao Tao...Tin Chi 30102024", page: 17},
+     {title: "...QC Dao Tao...Tin Chi 30102024", page: 17}
+  ]
+  ANSWER:
+    **Sinh viên bị cảnh báo kết quả học tập hoặc buộc thôi học trong các trường hợp:**
+    1. **Cảnh báo kết quả học tập**:
+       - Điểm trung bình tích lũy: <1,20 (năm 1); <1,40 (năm 2); <1,60 (năm 3);
+         <1,80 (các năm tiếp theo & cuối khóa).
+       - Điểm trung bình học kỳ: <0,80 (học kỳ đầu); <1,00 (các học kỳ tiếp theo).
+       - Tổng tín chỉ không đạt > 50% khối lượng đăng ký trong kỳ, hoặc nợ đọng
+         từ đầu khóa > 24 [1].
+    2. **Quản chế học tập**: bị cảnh cáo hai lần liên tiếp -> quản chế; phải được
+       cố vấn học tập chấp thuận mới được đăng ký học phần [2].
+    3. **Buộc thôi học**:
+       - Vượt quá thời gian học tối đa cho phép.
+       - Tổng 3 lần bị cảnh báo học tập (1 lần quản chế = 2 lần cảnh báo) [4].
+    Sinh viên buộc thôi học được báo cáo cho Viện trưởng và có quyền bảo lưu kết quả
+    đã tích lũy [4].
+
+Nhận xét : ĐẠT. Tổng hợp đúng số liệu chi tiết, nhiều trích dẫn [1][2][4], nguồn trang 17.
+
+................................................................................
+TC-03  |  Loại: IN-SCOPE  |  Vai trò: admin  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Vai trò admin truy hồi được tài liệu nhà trường; trả lời phạm vi áp dụng.
+Input    : "Quy chế này áp dụng cho phạm vi nào và do đơn vị nào phát hành?"
+Kỳ vọng  : Nêu đối tượng áp dụng + đơn vị phát hành; nguồn Quy chế đào tạo (trang 6).
+
+OUTPUT THỰC TẾ:
+  latency = 5253 ms
+  sources = [{title: "...QC Dao Tao...Tin Chi 30102024", page: 6}]
+  ANSWER:
+    **Quy chế này áp dụng cho:**
+    - **Sinh viên đại học hệ chính quy** tại Trường Đại học VinUni.
+    - **Chương trình trao đổi** cũng được áp dụng các quy định liên quan.
+    **Quy chế được phát hành bởi:**
+    - **Trường Đại học VinUni** [1].
+
+Nhận xét : ĐẠT. Đúng phạm vi & đơn vị, có trích dẫn [1], nguồn trang 6.
+
+................................................................................
+TC-04  |  Loại: IN-SCOPE  |  Vai trò: student  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Câu hỏi chi tiết về mốc thời gian; kiểm tra độ chính xác chi tiết nhỏ.
+Input    : "Bằng tốt nghiệp và bảng điểm chính thức được phát hành vào thời điểm nào?"
+Kỳ vọng  : Trả lời "tháng 9"; nguồn trỏ "Quy định Tốt nghiệp".
+
+OUTPUT THỰC TẾ:
+  latency = 5963 ms
+  sources = [{title: "0Bb29Dcf Quy Dinh Tot Nghiep", page: None}]
+  ANSWER:
+    **Bằng tốt nghiệp và bảng điểm chính thức sẽ được phát hành vào tháng 9** sau khi
+    hoàn tất việc in ấn và xác minh, sau khi sinh viên đã được xét đủ điều kiện
+    tốt nghiệp [1].
+
+Nhận xét : ĐẠT. Trích đúng chi tiết "tháng 9", có nguồn [1].
+
+................................................................................
+TC-05  |  Loại: OUT-OF-SCOPE  |  Vai trò: student  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Câu hỏi ngoài phạm vi tài liệu -> phải từ chối, không trả lời linh tinh.
+Input    : "Thủ đô của nước Pháp là gì?"
+Kỳ vọng  : Từ chối "Không đủ dữ liệu trong tài liệu đã nạp"; sources rỗng.
+
+OUTPUT THỰC TẾ:
+  latency = 3980 ms
+  sources = []
+  ANSWER:
+    Không đủ dữ liệu trong tài liệu đã nạp.
+
+Nhận xét : ĐẠT. Hệ thống không trả lời kiến thức ngoài tài liệu -> đúng thiết kế RAG đóng.
+
+................................................................................
+TC-06  |  Loại: ANTI-HALLUCINATION  |  Vai trò: student  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Câu hỏi "đúng chủ đề" (học vụ) nhưng tài liệu KHÔNG có số liệu cụ thể.
+           Kiểm tra hệ thống có bịa số liệu không.
+Input    : "Học phí ngành Y khoa năm 2026 là bao nhiêu tiền một năm?"
+Kỳ vọng  : Từ chối, KHÔNG bịa con số học phí.
+
+OUTPUT THỰC TẾ:
+  latency = 4917 ms
+  sources = []
+  ANSWER:
+    Không đủ dữ liệu trong tài liệu đã nạp để trả lời câu hỏi về học phí ngành Y khoa
+    năm 2026.
+
+Nhận xét : ĐẠT (quan trọng). Dù câu hỏi liên quan học vụ, hệ thống KHÔNG bịa số tiền,
+           chứng minh ngưỡng rag_min_score=0.4 + prompt grounding hoạt động tốt.
+
+................................................................................
+TC-07  |  Loại: INVALID INPUT (validation)  |  Vai trò: student  |  Kết quả: PASS
+................................................................................
+Mục tiêu : Input rỗng/khoảng trắng phải bị chặn ngay, không tốn lượt gọi LLM/Qdrant.
+Input    : "   "  (chuỗi toàn khoảng trắng)
+Kỳ vọng  : Trả thông báo lỗi rõ ràng; phản hồi gần như tức thì.
+
+OUTPUT THỰC TẾ:
+  latency = 5 ms   (nhanh -> chứng tỏ dừng ngay tại node validate_input, không gọi LLM)
+  sources = []
+  ANSWER:
+    Lỗi: Message cannot be empty.
+
+Nhận xét : ĐẠT. Bảo vệ đầu vào hoạt động đúng, tiết kiệm chi phí gọi mô hình.
+
+================================================================================
+4. BẢNG TỔNG HỢP KẾT QUẢ
+================================================================================
++-------+---------------------+---------+----------+------------+--------+--------+
+| ID    | Loại                | Vai trò | Latency  | Sources    | Trích  | Kết    |
+|       |                     |         | (ms)     | (số nguồn) | dẫn    | quả    |
++-------+---------------------+---------+----------+------------+--------+--------+
+| TC-01 | in-scope            | student | 11486    | 1          | Có     | PASS   |
+| TC-02 | in-scope            | student | 10068    | 3          | Có     | PASS   |
+| TC-03 | in-scope            | admin   | 5253     | 1          | Có     | PASS   |
+| TC-04 | in-scope            | student | 5963     | 1          | Có     | PASS   |
+| TC-05 | out-of-scope        | student | 3980     | 0 (đúng)   | -      | PASS   |
+| TC-06 | anti-hallucination  | student | 4917     | 0 (đúng)   | -      | PASS   |
+| TC-07 | invalid-input       | student | 5        | 0 (đúng)   | -      | PASS   |
++-------+---------------------+---------+----------+------------+--------+--------+
+ Tỷ lệ ĐẠT: 7/7 (100%).
+ Latency in-scope trung bình ~ 8.2s (gpt-4o-mini, có truy hồi + sinh dài).
+ Câu từ chối nhanh hơn (~4s) do không phải sinh câu trả lời dài.
+
+================================================================================
+5. BẰNG CHỨNG KIỂM THỬ TỰ ĐỘNG (BỔ TRỢ)
+================================================================================
+Lệnh : python -m pytest tests/ -q
+Output thực tế:
+    ........................................................................ [ 72%]
+    ............................                                             [100%]
+    100 passed in 2.75s
+
+=> Toàn bộ 100 unit/integration test (mock LLM, không gọi API ngoài) đều PASS.
+   Bao phủ: access filter theo vai trò, vector store, retrieval/hybrid rerank,
+   conversations API, stats API, object storage, users, config...
+
+================================================================================
+6. PHÁT HIỆN & GHI CHÚ TRONG QUÁ TRÌNH EVAL
+================================================================================
+(1) Bộ câu hỏi mẫu cũ datasets/docs/questions.jsonl (MECE, Gemini Live API, ML...)
+    KHÔNG còn khớp dữ liệu hiện tại. Collection "project-db" hiện chứa 2 tài liệu
+    QUY CHẾ HỌC VỤ (đào tạo tín chỉ + tốt nghiệp), không phải bộ tài liệu AI cũ.
+    -> Khi hỏi câu cũ, điểm truy hồi cao nhất chỉ ~0.378 < ngưỡng 0.4 nên hệ thống
+       từ chối "Không đủ dữ liệu". Đây là hành vi ĐÚNG theo thiết kế (không bịa),
+       nhưng có nghĩa cần CẬP NHẬT lại file questions.jsonl theo tài liệu hiện hành.
+    -> Vì vậy bộ test case ở Mục 3 đã được soạn lại bám sát dữ liệu THẬT đang nạp.
+
+(2) Khuyến nghị tiếp theo:
+    - Cập nhật datasets/docs/questions.jsonl theo 2 tài liệu quy chế hiện tại rồi
+      chạy lại scripts/evaluate_rag_sample.py để có thêm điểm faithfulness /
+      answer_relevancy (LLM-judge) tự động cho bộ câu hỏi mới.
+    - Cân nhắc bổ sung test case RBAC âm tính: tạo 1 tài liệu scope=personal của
+      lecturer rồi xác nhận student KHÔNG truy hồi được (hiện tại 2 tài liệu đều
+      scope=school nên admin/student/lecturer đều thấy như nhau).
+
+================================================================================
+ HẾT — File sinh thủ công kèm output chạy thật ngày 2026-06-17.
+================================================================================

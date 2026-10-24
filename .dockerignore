@@ -1,0 +1,26 @@
+.git
+.gitignore
+.env
+.venv
+venv/
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+docs/
+presentation/
+eval/
+*.md
+!requirements.txt
+.dockerignore
+Dockerfile
+docker-compose.yml
+# Frontend (backend image không cần) + artefact nặng
+frontend/node_modules
+frontend/dist
+node_modules
+Architecture.png
+*.png
+data/
+.ai-log/
+.claude/

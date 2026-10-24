@@ -1,0 +1,10 @@
+{"question": "MECE là gì?", "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf", "type": "in-scope"}
+{"question": "Logic tree được dùng để làm gì?", "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf", "type": "in-scope"}
+{"question": "Tại sao tư duy logic lại quan trọng trong AI?", "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf", "type": "in-scope"}
+{"question": "Logical thinking in AI là gì?", "expected_document": "logical_thinking_and_problem_solving_in_AI.pdf", "type": "in-scope"}
+{"question": "Gemini Live API hỗ trợ những tính năng chính nào?", "expected_document": "google_prompt.pdf", "type": "in-scope"}
+{"question": "Theo Google, nên cấu trúc prompt như thế nào cho hiệu quả?", "expected_document": "google_prompt.pdf", "type": "in-scope"}
+{"question": "Affective Dialog trong Live API là gì?", "expected_document": "google_prompt.pdf", "type": "in-scope"}
+{"question": "Có những cách nào để xử lý dữ liệu mất cân bằng trong phân loại?", "expected_document": "ML_cheatsheets.pdf", "type": "in-scope"}
+{"question": "Thủ đô của nước Pháp là gì?", "expected_document": null, "type": "out-of-scope"}
+{"question": "Giá vàng hôm nay bao nhiêu một lượng?", "expected_document": null, "type": "out-of-scope"}

@@ -1,0 +1,54 @@
+/* Thẻ "Hướng dẫn tải lên" — nền xanh gradient, dùng chung trang Tải lên */
+.ug-card {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  color: #fff;
+  border: 1px solid transparent; /* khớp box-model với .dmrs-card (có border 1px) */
+  border-radius: 14px;
+  padding: 22px;
+}
+.ug-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+.ug-title svg { flex-shrink: 0; }
+
+.ug-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ug-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.92);
+}
+/* Icon giữ ở đầu dòng; chữ dài xuống dòng vẫn thụt đều theo mép chữ */
+.ug-list li svg { flex-shrink: 0; margin-top: 2px; color: rgba(255, 255, 255, 0.9); }
+.ug-list li span { flex: 1; }
+
+/* Chú thích cuối thẻ — hộp callout nền mờ, bo góc */
+.ug-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 13px 15px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.92);
+}
+.ug-note svg { flex-shrink: 0; margin-top: 1px; opacity: 0.9; }
+.ug-note span { flex: 1; }

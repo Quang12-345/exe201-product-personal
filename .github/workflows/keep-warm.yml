@@ -1,0 +1,49 @@
+name: Keep backend warm
+
+# Giữ backend trên Render (plan free) KHÔNG ngủ → tránh cold start 30-60s khiến
+# đăng nhập lần đầu rất lâu. Workflow ping /health định kỳ để instance luôn "ấm".
+#
+# CẦN CẤU HÌNH 1 LẦN:
+#   GitHub repo → Settings → Secrets and variables → Actions → Variables →
+#   New repository variable: BACKEND_URL = https://ai20k-backend.onrender.com
+# (Không có biến này thì job sẽ tự bỏ qua, không báo lỗi.)
+#
+# LƯU Ý: lịch cron của GitHub Actions có thể trễ vài phút và bị tạm dừng nếu repo
+# 60 ngày không hoạt động. Muốn ổn định tuyệt đối: dùng UptimeRobot (miễn phí) trỏ
+# tới /health mỗi 5 phút, hoặc nâng Render lên plan "starter" (không ngủ).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # mỗi 10 phút
+  workflow_dispatch:          # cho phép bấm chạy thủ công
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        env:
+          BACKEND_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "BACKEND_URL chưa được đặt (repo variable) — bỏ qua."
+            exit 0
+          fi
+          url="${BACKEND_URL%/}/health"
+          echo "Pinging ${url}"
+          # Thử tối đa 3 lần (instance ngủ dậy có thể chậm), tổng timeout ~90s.
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 70 "${url}" || echo "000")
+            echo "Lần ${i}: HTTP ${code}"
+            if [ "${code}" = "200" ]; then
+              echo "Backend đang ấm ✔"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Không nhận được 200 sau 3 lần thử — backend có thể đang khởi động lại."
+          # Không fail workflow để tránh spam thông báo lỗi khi instance đang dậy.
+          exit 0

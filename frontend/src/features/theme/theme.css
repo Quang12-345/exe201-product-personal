@@ -1,0 +1,460 @@
+/* ============================================================
+   Dark theme — kích hoạt khi <html data-theme="dark">.
+   Override token + các bề mặt/màu hard-code chính của 2 khu.
+   ============================================================ */
+[data-theme='dark'] {
+  --color-text: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+  --color-bg: #0f172a;
+  --color-secondary: #1e293b;
+  color-scheme: dark;
+}
+[data-theme='dark'] body { background: #0f172a; color: #e2e8f0; }
+
+/* ---- Layout nền + thanh ---- */
+[data-theme='dark'] .dmrs-layout,
+[data-theme='dark'] .lec-layout,
+[data-theme='dark'] .st-layout { background: #0f172a; color: #e2e8f0; }
+[data-theme='dark'] .dmrs-sidebar,
+[data-theme='dark'] .dmrs-topbar,
+[data-theme='dark'] .lec-sidebar,
+[data-theme='dark'] .lec-topbar,
+[data-theme='dark'] .st-sidebar,
+[data-theme='dark'] .st-topbar { background: #1e293b; border-color: #334155; }
+[data-theme='dark'] .dmrs-topbar-divider,
+[data-theme='dark'] .lec-topbar-divider,
+[data-theme='dark'] .st-topbar-divider { background: #334155; }
+
+/* ---- Thẻ / bề mặt nổi ---- */
+[data-theme='dark'] .dmrs-card,
+[data-theme='dark'] .dmrs-stat-card,
+[data-theme='dark'] .dmrs-shortcut,
+[data-theme='dark'] .dmrs-range-options,
+[data-theme='dark'] .dmrs-alert,
+[data-theme='dark'] .dmrs-user-menu,
+[data-theme='dark'] .dmrs-modal,
+[data-theme='dark'] .um-menu,
+[data-theme='dark'] .lec-stat-card,
+[data-theme='dark'] .lec-class-card,
+[data-theme='dark'] .lec-table-box,
+[data-theme='dark'] .st-card,
+[data-theme='dark'] .st-chat-panel,
+[data-theme='dark'] .st-convlist,
+[data-theme='dark'] .st-field-card,
+[data-theme='dark'] .st-saved-card,
+[data-theme='dark'] .st-viewed-card,
+[data-theme='dark'] .st-more-menu,
+[data-theme='dark'] .st-modal { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+
+/* ---- Tiêu đề có màu tối hard-code ---- */
+[data-theme='dark'] .dmrs-page-title,
+[data-theme='dark'] .st-title,
+[data-theme='dark'] .dmrs-stat-value { color: #f1f5f9; }
+
+/* ---- Nav ---- */
+[data-theme='dark'] .dmrs-nav-link,
+[data-theme='dark'] .st-nav-link,
+[data-theme='dark'] .st-settings-nav-item { color: #cbd5e1; }
+[data-theme='dark'] .dmrs-nav-link:hover,
+[data-theme='dark'] .st-nav-link:hover,
+[data-theme='dark'] .st-settings-nav-item:hover { background: #273449; }
+[data-theme='dark'] .dmrs-nav-link.is-active,
+[data-theme='dark'] .st-nav-link.is-active,
+[data-theme='dark'] .st-settings-nav-item.is-active { background: rgba(37, 99, 235, 0.22); color: #93c5fd; }
+
+/* ---- Input / search / select ---- */
+[data-theme='dark'] .dmrs-field input,
+[data-theme='dark'] .dmrs-field select,
+[data-theme='dark'] .dmrs-field textarea,
+[data-theme='dark'] .dmrs-select,
+[data-theme='dark'] .dmrs-select-plain,
+[data-theme='dark'] .st-pwd-field input,
+[data-theme='dark'] .st-mini-select select,
+[data-theme='dark'] .st-share-link input,
+[data-theme='dark'] .st-info-field input { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+/* Chiều sâu + hover cho input trên nền tối */
+[data-theme='dark'] .dmrs-field input,
+[data-theme='dark'] .dmrs-field select,
+[data-theme='dark'] .dmrs-field textarea,
+[data-theme='dark'] .st-pwd-field input,
+[data-theme='dark'] .st-info-field input { box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3); }
+[data-theme='dark'] .dmrs-field input:hover:not(:read-only),
+[data-theme='dark'] .dmrs-field textarea:hover:not(:read-only),
+[data-theme='dark'] .st-info-field input:hover:not(:read-only),
+[data-theme='dark'] .st-pwd-field input:hover { border-color: #475569; }
+[data-theme='dark'] .dmrs-field input:focus,
+[data-theme='dark'] .dmrs-field select:focus,
+[data-theme='dark'] .dmrs-field textarea:focus,
+[data-theme='dark'] .st-info-field input:focus,
+[data-theme='dark'] .st-pwd-field input:focus { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+[data-theme='dark'] .dmrs-search,
+[data-theme='dark'] .st-search,
+[data-theme='dark'] .st-chat-input { background: #0f172a; }
+/* Bấm vào ô tìm kiếm để gõ (:focus-within) — light mode bật nền TRẮNG cứng,
+   không có override cho dark → chữ sáng (đã đổi ở dòng dưới) rơi trên nền
+   trắng ngay lúc đang gõ tìm kiếm, gần như mất chữ. Ảnh hưởng MỌI trang có
+   ô tìm kiếm (topbar admin/giảng viên, Kho tài liệu, Câu trả lời đã lưu). */
+[data-theme='dark'] .dmrs-search:focus-within,
+[data-theme='dark'] .st-search:focus-within { background: #0f172a; border-color: var(--color-primary); }
+
+/* Autofill trên theme tối — bản đối xứng của index.css (light). Không có
+   phần này, trình duyệt vẫn tô autofill theo màu riêng của nó (thường sáng)
+   trong khi chữ đã đổi sáng theo dark mode → tiệp/lệch màu ngay khi autofill. */
+[data-theme='dark'] .dmrs-field input:-webkit-autofill,
+[data-theme='dark'] .dmrs-field input:-webkit-autofill:hover,
+[data-theme='dark'] .dmrs-field input:-webkit-autofill:focus,
+[data-theme='dark'] .st-info-field input:-webkit-autofill,
+[data-theme='dark'] .st-info-field input:-webkit-autofill:hover,
+[data-theme='dark'] .st-info-field input:-webkit-autofill:focus,
+[data-theme='dark'] .st-pwd-field input:-webkit-autofill,
+[data-theme='dark'] .st-pwd-field input:-webkit-autofill:hover,
+[data-theme='dark'] .st-pwd-field input:-webkit-autofill:focus,
+[data-theme='dark'] .st-rename-input:-webkit-autofill,
+[data-theme='dark'] .lec-rename-input:-webkit-autofill,
+[data-theme='dark'] .chat-fb-reason input:-webkit-autofill,
+[data-theme='dark'] .dmrs-search input:-webkit-autofill,
+[data-theme='dark'] .st-search input:-webkit-autofill,
+[data-theme='dark'] .st-chat-input input:-webkit-autofill {
+  -webkit-text-fill-color: #e2e8f0;
+  -webkit-box-shadow: 0 0 0 1000px #0f172a inset;
+  box-shadow: 0 0 0 1000px #0f172a inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+/* Ô read-only: nền sáng #f1f5f9 !important của light theme phải bị override hẳn ở dark */
+[data-theme='dark'] .dmrs-input--readonly { background: #0f172a !important; color: #94a3b8 !important; border-color: #334155; }
+[data-theme='dark'] .dmrs-search input,
+[data-theme='dark'] .st-search input,
+[data-theme='dark'] .st-chat-input input { color: #e2e8f0; }
+/* Placeholder & nhãn dễ đọc trên nền tối */
+[data-theme='dark'] .dmrs-field input::placeholder,
+[data-theme='dark'] .dmrs-field textarea::placeholder,
+[data-theme='dark'] .st-info-field input::placeholder,
+[data-theme='dark'] .st-pwd-field input::placeholder { color: #64748b; }
+[data-theme='dark'] .dmrs-field > label,
+[data-theme='dark'] .st-pwd-field label { color: #cbd5e1; }
+[data-theme='dark'] .dmrs-select select { color: #e2e8f0; }
+
+/* ---- Bảng ---- */
+[data-theme='dark'] .dmrs-table thead th,
+[data-theme='dark'] .st-chat-table th { background: #273449; color: #94a3b8; }
+[data-theme='dark'] .dmrs-table tbody tr,
+[data-theme='dark'] .st-table tbody tr,
+[data-theme='dark'] .st-table thead th,
+[data-theme='dark'] .st-chat-table td { border-color: #334155; }
+[data-theme='dark'] .dmrs-clickable:hover,
+[data-theme='dark'] .dmrs-table tbody tr:hover { background: #273449; }
+
+/* ---- Nền xám nhạt -> xám đậm ---- */
+[data-theme='dark'] .dmrs-icon-btn:hover,
+[data-theme='dark'] .st-icon-btn:hover,
+[data-theme='dark'] .um-trigger:hover,
+[data-theme='dark'] .dmrs-shortcut:hover,
+[data-theme='dark'] .st-faq-item,
+[data-theme='dark'] .st-collapse-btn:hover,
+[data-theme='dark'] .dmrs-menu-btn:hover,
+[data-theme='dark'] .st-conv-item:hover,
+[data-theme='dark'] .dmrs-file-icon,
+[data-theme='dark'] .st-file-icon,
+[data-theme='dark'] .dmrs-queue-item,
+[data-theme='dark'] .st-conv-icon,
+[data-theme='dark'] .dmrs-doc-count,
+[data-theme='dark'] .dmrs-radio-bar,
+[data-theme='dark'] .dmrs-note,
+[data-theme='dark'] .dmrs-file-row,
+[data-theme='dark'] .st-bubble,
+[data-theme='dark'] .st-chat-table { background: #273449; }
+[data-theme='dark'] .dmrs-table th[scope],
+[data-theme='dark'] .st-bubble { color: #e2e8f0; }
+[data-theme='dark'] .dmrs-question-detail,
+[data-theme='dark'] .dmrs-detail-grid > div { background: #273449; border-color: #334155; }
+[data-theme='dark'] .dmrs-question-detail p,
+[data-theme='dark'] .dmrs-detail-grid strong { color: #e2e8f0; }
+[data-theme='dark'] .dmrs-chart--scroll .dmrs-chart-scroll { scrollbar-color: #475569 #273449; }
+[data-theme='dark'] .dmrs-chart--scroll .dmrs-chart-scroll::-webkit-scrollbar-track { background: #273449; }
+[data-theme='dark'] .dmrs-chart--scroll .dmrs-chart-scroll::-webkit-scrollbar-thumb { background: #475569; }
+[data-theme='dark'] .dmrs-table-scroll--unanswered { scrollbar-color: #475569 #273449; }
+[data-theme='dark'] .dmrs-table-scroll--unanswered::-webkit-scrollbar-track { background: #273449; }
+[data-theme='dark'] .dmrs-table-scroll--unanswered::-webkit-scrollbar-thumb { background: #475569; }
+/* FAQ "Câu hỏi thường gặp": chữ tối #334155 trên nền tối -> đổi sang sáng */
+[data-theme='dark'] .st-faq-item { color: #cbd5e1; }
+[data-theme='dark'] .st-faq-item:hover { background: #334155; color: #e2e8f0; }
+[data-theme='dark'] .st-doc-row:hover { background: #273449; }
+/* Nút "Xóa" viền đỏ (.st-btn--danger): nền trắng gốc phải đổi, không thì
+   thành khung sáng nổi trên modal tối. */
+[data-theme='dark'] .st-btn--danger { background: transparent; border-color: rgba(248, 113, 113, 0.5); color: #fca5a5; }
+[data-theme='dark'] .st-btn--danger:hover { background: rgba(220, 38, 38, 0.15); border-color: #fca5a5; }
+
+/* ---- Tint xanh nhạt -> xanh đậm trong suốt ---- */
+[data-theme='dark'] .dmrs-link-btn,
+[data-theme='dark'] .st-share-btn,
+[data-theme='dark'] .st-faq-item--active,
+[data-theme='dark'] .dmrs-stat-icon,
+[data-theme='dark'] .dmrs-total-card,
+[data-theme='dark'] .st-aside-toggle.is-active,
+[data-theme='dark'] .dmrs-aside-toggle.is-active { background: rgba(37, 99, 235, 0.2); }
+[data-theme='dark'] .st-faq-item--active,
+[data-theme='dark'] .dmrs-link-btn,
+[data-theme='dark'] .st-share-btn { color: #93c5fd; border-color: transparent; }
+[data-theme='dark'] .dmrs-shortcut-icon { background: #273449; }
+
+/* ---- Dropdown items / nút phụ ---- */
+[data-theme='dark'] .um-menu-item:hover,
+[data-theme='dark'] .st-more-menu button:hover,
+[data-theme='dark'] .dmrs-range-option:hover { background: #273449; }
+[data-theme='dark'] .dmrs-range-option { color: #cbd5e1; }
+[data-theme='dark'] .dmrs-range-option.is-active { background: rgba(37, 99, 235, 0.2); color: #93c5fd; }
+[data-theme='dark'] .dmrs-alert--success { background: rgba(16, 185, 129, 0.14); border-color: rgba(16, 185, 129, 0.45); color: #6ee7b7; }
+[data-theme='dark'] .dmrs-btn--light,
+[data-theme='dark'] .dmrs-btn--ghost,
+[data-theme='dark'] .dmrs-btn--outline,
+[data-theme='dark'] .st-btn--ghost { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+[data-theme='dark'] .st-btn--ghost:hover { background: #334155; border-color: #475569; }
+[data-theme='dark'] .dmrs-page-btn,
+[data-theme='dark'] .st-page-btn { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+
+/* ---- Modal nền mờ đậm hơn ---- */
+[data-theme='dark'] .dmrs-modal-backdrop,
+[data-theme='dark'] .st-modal-backdrop { background: rgba(0, 0, 0, 0.35); }
+
+/* ---- Scope option (share) ---- */
+[data-theme='dark'] .st-scope-opt { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .st-scope-opt.is-active { background: rgba(37, 99, 235, 0.2); border-color: var(--color-primary); }
+
+/* ============================================================
+   Bổ sung: chat dùng chung + khu giảng viên (lec-) + markdown.
+   Sửa "chói" (bề mặt sáng còn sót) và "tiệp chữ" (chữ sáng nền sáng).
+   ============================================================ */
+
+/* ---- Bong bóng chat dùng chung (ChatMessage) ---- */
+[data-theme='dark'] .chat-bubble,
+[data-theme='dark'] .lec-bubble { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .ai-typing,
+[data-theme='dark'] .lec-conv-preview { color: #94a3b8; }
+
+/* ---- Markdown trong chat: code, bảng, citation, nút lưu ---- */
+[data-theme='dark'] .chat-md code,
+[data-theme='dark'] .st-md code,
+[data-theme='dark'] .lec-md code { background: #0f172a; color: #e2e8f0; }
+[data-theme='dark'] .chat-md pre,
+[data-theme='dark'] .st-md pre,
+[data-theme='dark'] .lec-md pre { background: #0f172a; color: #e2e8f0; }
+[data-theme='dark'] .chat-md th,
+[data-theme='dark'] .st-md th,
+[data-theme='dark'] .lec-md th { background: #273449; color: #94a3b8; }
+[data-theme='dark'] .chat-md table,
+[data-theme='dark'] .st-md table,
+[data-theme='dark'] .lec-md table,
+[data-theme='dark'] .chat-md td,
+[data-theme='dark'] .st-md td,
+[data-theme='dark'] .lec-md td { border-color: #334155; }
+[data-theme='dark'] .chat-citation { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.3); color: #d1fae5; }
+[data-theme='dark'] .chat-save-btn { background: rgba(37, 99, 235, 0.18); border-color: transparent; color: #93c5fd; }
+
+/* ---- Khu giảng viên (lec-): danh sách hội thoại, ô nhập, thẻ ---- */
+[data-theme='dark'] .lec-convlist,
+[data-theme='dark'] .lec-suggest-item,
+[data-theme='dark'] .lec-chat-input,
+[data-theme='dark'] .lec-pop,
+[data-theme='dark'] .lec-card { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .lec-chat-input input { color: #e2e8f0; }
+[data-theme='dark'] .lec-conv-item:hover,
+[data-theme='dark'] .lec-pop-item:hover { background: #273449; }
+[data-theme='dark'] .lec-conv-item.is-active { background: rgba(37, 99, 235, 0.2); color: #93c5fd; }
+[data-theme='dark'] .lec-suggest-card { background: rgba(37, 99, 235, 0.12); border-color: rgba(37, 99, 235, 0.28); }
+
+/* ---- Thẻ tag / nền xanh nhạt còn sót (admin) ---- */
+[data-theme='dark'] .dmrs-tag { background: rgba(37, 99, 235, 0.15); color: #93c5fd; }
+
+/* ---- Menu người dùng ---- */
+[data-theme='dark'] .um-menu { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .um-trigger { color: #e2e8f0; }
+
+/* ---- Lưới thẻ tài liệu (Kho tài liệu — cả 3 role: dmrs- + st-) ---- */
+[data-theme='dark'] .dmrs-doc-card,
+[data-theme='dark'] .st-doc-card { background: #1e293b; border-color: #334155; }
+[data-theme='dark'] .dmrs-doc-card-title,
+[data-theme='dark'] .st-doc-card-title { color: #f1f5f9; }
+[data-theme='dark'] .dmrs-doc-card-icon,
+[data-theme='dark'] .st-doc-card-icon { background: color-mix(in srgb, var(--c, #64748b) 30%, #1e293b); }
+[data-theme='dark'] .dmrs-doc-tag,
+[data-theme='dark'] .st-doc-tag {
+  background: color-mix(in srgb, var(--c, #64748b) 28%, #1e293b);
+  color: color-mix(in srgb, var(--c, #64748b) 70%, #fff);
+}
+[data-theme='dark'] .dmrs-doc-card:hover,
+[data-theme='dark'] .st-doc-card:hover { box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35); }
+
+/* ---- Nút chuyển lưới/danh sách ---- */
+[data-theme='dark'] .dmrs-view-toggle,
+[data-theme='dark'] .st-view-toggle { border-color: #334155; }
+[data-theme='dark'] .dmrs-view-toggle button,
+[data-theme='dark'] .st-view-toggle button { background: #1e293b; color: #94a3b8; }
+[data-theme='dark'] .dmrs-view-toggle button + button,
+[data-theme='dark'] .st-view-toggle button + button { border-color: #334155; }
+[data-theme='dark'] .dmrs-view-toggle button.is-active,
+[data-theme='dark'] .st-view-toggle button.is-active { background: var(--color-primary); color: #fff; }
+
+/* ---- IconSelect (bộ lọc có badge + tìm nhanh) ---- */
+[data-theme='dark'] .dmrs-iselect-trigger { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .dmrs-iselect-text { color: #e2e8f0; }
+[data-theme='dark'] .dmrs-iselect-menu { background: #1e293b; border-color: #334155; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4); }
+[data-theme='dark'] .dmrs-iselect-opt { color: #e2e8f0; }
+[data-theme='dark'] .dmrs-iselect-opt:hover { background: #273449; }
+[data-theme='dark'] .dmrs-iselect-opt.is-active { background: rgba(37, 99, 235, 0.22); color: #93c5fd; }
+[data-theme='dark'] .dmrs-iselect-search { background: #0f172a; }
+[data-theme='dark'] .dmrs-iselect-search input { color: #e2e8f0; }
+[data-theme='dark'] .dmrs-iselect-badge--muted { background: #334155; color: #cbd5e1; }
+
+/* ---- Danh sách hội thoại (chat) — chữ tối #334155 trên nền tối -> sáng cho dễ đọc ---- */
+[data-theme='dark'] .st-conv-item,
+[data-theme='dark'] .lec-conv-item { color: #cbd5e1; }
+[data-theme='dark'] .st-conv-item .st-conv-text strong,
+[data-theme='dark'] .lec-conv-item strong { color: #f1f5f9; }
+[data-theme='dark'] .st-conv-item.is-active { background: rgba(37, 99, 235, 0.28); }
+[data-theme='dark'] .st-conv-item.is-active .st-conv-text strong { color: #ffffff; }
+
+/* ---- Feedback AI (chat 👍/👎 + thẻ tổng hợp admin) ---- */
+[data-theme='dark'] .chat-fb-q { color: #94a3b8; }
+[data-theme='dark'] .chat-fb-btn { border-color: #334155; background: #1e293b; color: #94a3b8; }
+[data-theme='dark'] .chat-fb-btn:hover { background: #273449; color: #cbd5e1; }
+[data-theme='dark'] .chat-fb-reason input { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .dmrs-feedback-stat,
+[data-theme='dark'] .dmrs-feedback-reason { background: #273449; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .dmrs-feedback-stat strong { color: #f1f5f9; }
+[data-theme='dark'] .dmrs-feedback-stat-btn:hover:not(:disabled) { background: rgba(220, 38, 38, 0.12); border-color: rgba(248, 113, 113, 0.5); }
+[data-theme='dark'] .dmrs-feedback-question { background: #273449; border-color: #334155; }
+[data-theme='dark'] .dmrs-feedback-question > strong { color: #f1f5f9; }
+[data-theme='dark'] .dmrs-feedback-question-answer { color: #cbd5e1; }
+[data-theme='dark'] .dmrs-feedback-question-reason { color: #fca5a5; }
+[data-theme='dark'] .dmrs-eval-metric { background: #273449; border-color: #334155; }
+[data-theme='dark'] .dmrs-eval-metric-val { color: #f1f5f9; }
+[data-theme='dark'] .dmrs-eval-metric-label { color: #cbd5e1; }
+[data-theme='dark'] .dmrs-eval-empty code,
+[data-theme='dark'] .dmrs-eval-note code { background: #334155; color: #e2e8f0; }
+[data-theme='dark'] .chat-act-btn { border-color: #334155; background: #1e293b; color: #94a3b8; }
+[data-theme='dark'] .chat-act-btn:hover:not(:disabled) { background: #273449; color: #cbd5e1; }
+[data-theme='dark'] .chat-act-btn.is-done,
+[data-theme='dark'] .chat-act-btn.is-up { background: rgba(22, 163, 74, 0.18); color: #6ee7b7; border-color: rgba(22, 163, 74, 0.4); }
+[data-theme='dark'] .chat-act-btn.is-down { background: rgba(220, 38, 38, 0.18); color: #fca5a5; border-color: rgba(220, 38, 38, 0.4); }
+[data-theme='dark'] .chat-actions-sep { background: #334155; }
+[data-theme='dark'] .chat-suggest-label { color: #94a3b8; }
+[data-theme='dark'] .chat-suggest-chip { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+[data-theme='dark'] .chat-suggest-chip:hover { background: #273449; border-color: #3b82f6; }
+[data-theme='dark'] .chat-suggest-chip:hover svg { color: #60a5fa; }
+[data-theme='dark'] .chat-trust--high { background: rgba(22, 163, 74, 0.18); color: #6ee7b7; }
+[data-theme='dark'] .chat-trust--med { background: rgba(2, 132, 199, 0.2); color: #7dd3fc; }
+[data-theme='dark'] .chat-trust--warn,
+[data-theme='dark'] .chat-trust--low { background: rgba(217, 119, 6, 0.2); color: #fcd34d; }
+
+/* ============================================================
+   Rà soát "mất chữ" ở dark mode — đợt 2.
+   Hai dạng lỗi: (a) chữ tối cứng không được override, nằm trên bề mặt
+   đã đổi tối; (b) bề mặt vẫn sáng (quên override) nhưng chữ bên trong
+   kế thừa màu sáng của theme tối → sáng trên sáng, cũng mất chữ.
+   ============================================================ */
+
+/* ---- (a) Chữ tối cứng thiếu override — tiêu đề/nội dung trên thẻ tối ---- */
+[data-theme='dark'] .dmrs-total-card strong,
+[data-theme='dark'] .dmrs-library-empty h3,
+[data-theme='dark'] .st-library-empty h3,
+[data-theme='dark'] .dmrs-subject-title h2,
+[data-theme='dark'] .st-subject-title h2,
+[data-theme='dark'] .st-subject-doc-main strong { color: #f1f5f9; }
+[data-theme='dark'] .st-field-popular-label,
+[data-theme='dark'] .st-more-menu button,
+[data-theme='dark'] .st-share-label { color: #e2e8f0; }
+[data-theme='dark'] .st-field-popular-item { color: #94a3b8; }
+[data-theme='dark'] .st-modal-body { color: #e2e8f0; }
+/* .dmrs-note đã có nền tối (#273449) ở khối trên nhưng thiếu màu chữ */
+[data-theme='dark'] .dmrs-note { color: #cbd5e1; }
+[data-theme='dark'] .dmrs-note strong { color: #93c5fd; }
+
+/* ---- Icon-btn hover: chữ/icon phải theo theme, không hard-code tối ---- */
+[data-theme='dark'] .st-icon-btn:hover { color: #e2e8f0; }
+[data-theme='dark'] .st-menu-btn,
+[data-theme='dark'] .st-collapse-btn,
+[data-theme='dark'] .dmrs-menu-btn { color: #cbd5e1; }
+
+/* ---- Nhãn phụ (vai trò, email) trong menu người dùng + topbar ---- */
+[data-theme='dark'] .um-meta span,
+[data-theme='dark'] .um-menu-head span { color: #94a3b8; }
+[data-theme='dark'] .um-menu-head { border-color: #334155; }
+
+/* ---- Nguồn trích dẫn dưới câu trả lời AI (sinh viên) ---- */
+[data-theme='dark'] .st-sources-head { color: #cbd5e1; }
+[data-theme='dark'] .st-source-item { color: #94a3b8; }
+
+/* ---- Panel thông báo: nút footer khi hover ---- */
+[data-theme='dark'] .nb-foot-btn:hover { color: #cbd5e1; }
+
+/* ---- Popup đổi tên cuộc trò chuyện: ô nhập phải có nền tường minh
+   (không thì trình duyệt tự áp nền tối mặc định của color-scheme:dark,
+   cộng với chữ tối cứng → mất chữ hoàn toàn) ---- */
+[data-theme='dark'] .st-rename-input,
+[data-theme='dark'] .lec-rename-input { background: #0f172a; border-color: #334155; color: #e2e8f0; }
+
+/* ---- Popup đổi tên của giảng viên (.lec-modal) chưa từng có override tối ---- */
+[data-theme='dark'] .lec-modal-backdrop { background: rgba(0, 0, 0, 0.6); }
+[data-theme='dark'] .lec-modal { background: #1e293b; color: #e2e8f0; }
+[data-theme='dark'] .lec-btn-ghost { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+
+/* ---- (b) Bề mặt còn sáng (quên override) nhưng chữ kế thừa màu sáng
+   của theme tối → sáng trên sáng, cũng mất chữ ---- */
+[data-theme='dark'] .dmrs-radio-bar,
+[data-theme='dark'] .dmrs-queue-item,
+[data-theme='dark'] .dmrs-file-row { background: #273449; }
+[data-theme='dark'] .dmrs-radio-card.is-active { background: rgba(37, 99, 235, 0.2); color: #e2e8f0; }
+
+/* ---- "Chói": chip/thẻ nhạt còn sót trôi nổi trên nền tối (không mất
+   chữ nhưng chưa đồng bộ theme) ---- */
+[data-theme='dark'] .dmrs-badge--info,
+[data-theme='dark'] .st-badge--info { background: rgba(37, 99, 235, 0.18); color: #93c5fd; }
+[data-theme='dark'] .dmrs-badge--success,
+[data-theme='dark'] .st-badge--success { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+[data-theme='dark'] .dmrs-badge--warning,
+[data-theme='dark'] .st-badge--warning { background: rgba(217, 119, 6, 0.2); color: #fcd34d; }
+[data-theme='dark'] .dmrs-badge--danger,
+[data-theme='dark'] .st-badge--danger { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
+[data-theme='dark'] .dmrs-badge--neutral,
+[data-theme='dark'] .st-badge--neutral { background: #334155; color: #cbd5e1; }
+[data-theme='dark'] .dmrs-subject-latest,
+[data-theme='dark'] .st-subject-latest { background: #273449; border-color: #334155; color: #94a3b8; }
+[data-theme='dark'] .dmrs-avatar-upload { background: #0f172a; border-color: #334155; color: #94a3b8; }
+[data-theme='dark'] .dmrs-topic-icon { background: #273449; color: #94a3b8; }
+[data-theme='dark'] .lec-pop-count { background: rgba(37, 99, 235, 0.18); }
+[data-theme='dark'] .lec-citation { background: rgba(16, 185, 129, 0.12); border-left-color: rgba(16, 185, 129, 0.4); }
+[data-theme='dark'] .lec-citation p { color: #cbd5e1; }
+[data-theme='dark'] .dv-file-icon { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
+[data-theme='dark'] .nb-item-icon,
+[data-theme='dark'] .nb-badge { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+[data-theme='dark'] .chat-save-btn:hover:not(:disabled) { background: rgba(37, 99, 235, 0.28); }
+[data-theme='dark'] .st-select-btn { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+
+/* ============================================================
+   Rà soát "mất chữ" khi HOVER — đợt 3.
+   Nhiều nút có nền đã override tối ở trạng thái mặc định, nhưng riêng
+   :hover lại set cứng nền SÁNG (quên override) → hover là chữ (đã đổi
+   sáng) rơi trên nền sáng vừa hiện ra: chói + gần như mất chữ.
+   ============================================================ */
+
+/* Nút phụ .dmrs-btn--light (Hủy/Xem/Sửa...) dùng ở 7 trang admin+giảng viên:
+   nền mặc định đã tối (#1e293b) nhưng :hover đè về #f8fafc (sáng) trong khi
+   chữ vẫn là #cbd5e1 (sáng) → sáng trên sáng, gần như mất chữ khi hover. */
+[data-theme='dark'] .dmrs-btn--light:hover { background: #334155; }
+
+/* Nút "Chia sẻ" (chat) / link-btn (admin): nền base đã là xanh nhạt-tối,
+   nhưng :hover đè về #dbe6ff (sáng) → chói khi hover. */
+[data-theme='dark'] .st-share-btn:hover,
+[data-theme='dark'] .dmrs-link-btn:hover { background: rgba(37, 99, 235, 0.32); }
+
+/* Icon đổi tên/xóa trong danh sách hội thoại: hover hiện nền sáng #e2e8f0
+   + chữ tối #334155 — cặp đôi nhưng vẫn là 1 ô sáng chói nổi trên sidebar tối. */
+[data-theme='dark'] .st-conv-act:hover { background: #334155; color: #e2e8f0; }
+
+/* Hàng "Xem hồ sơ" đầu menu người dùng: hover đè nền sáng #f8fafc. */
+[data-theme='dark'] .um-menu-head:hover { background: #273449; }
+
+/* Nút "Bỏ qua" trong tour hướng dẫn: hover tối màu chữ xuống #64748b,
+   trên nền tour đã tối (#1e293b) → gần như mất chữ. */
+[data-theme='dark'] .tour-skip:hover { color: #cbd5e1; }

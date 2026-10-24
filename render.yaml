@@ -1,0 +1,172 @@
+# Render Blueprint — Trung Tâm Tri Thức AI (AI20K)
+# Kết nối repo GitHub này vào Render (New + → Blueprint) để tự tạo:
+#   - PostgreSQL (ai20k-db)        - Redis/Key Value (ai20k-redis)
+#   - Backend FastAPI (Docker)     - Frontend React/Vite (Static Site)
+#
+# Sau khi apply, điền các biến đánh dấu "sync: false" trong Dashboard (secret):
+#   OPENAI_API_KEY, QDRANT_URL/API_KEY/COLLECTION_NAME, R2_*, EMAIL_USERNAME/PASSWORD/FROM,
+#   CORS_ORIGINS (= URL frontend), và VITE_API_URL của frontend (= URL backend).
+#
+# LƯU Ý QUAN TRỌNG (docling/torch nặng): backend nên dùng plan >= "starter" (>=2GB RAM).
+# Plan "free" (512MB) có thể build lâu hoặc thiếu RAM khi xử lý tài liệu. Có thể đặt
+# INGEST_ASYNC=true + bật service worker (cần plan trả phí) để tách phần xử lý nặng.
+
+databases:
+  - name: ai20k-db
+    databaseName: ai20k
+    user: ai20k
+    plan: free
+    # (Không ép region để tránh lỗi "cannot change region" khi sync blueprint.
+    #  Render giữ vùng hiện có; muốn co-location thì tạo mới cùng vùng từ đầu.)
+
+envVarGroups:
+  - name: ai20k-shared
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: LLM_PROVIDER
+        value: openai
+      - key: MODEL_NAME
+        value: gpt-4o-mini
+      - key: LLM_TEMPERATURE
+        value: "0.2"
+      - key: EMBEDDING_PROVIDER
+        value: openai
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: EMBEDDING_DIMENSION
+        value: "1536"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION_NAME
+        value: project-db
+      - key: OBJECT_STORAGE_PROVIDER
+        value: r2
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_REGION
+        value: auto
+      # Render CHẶN cổng SMTP (25/465/587) -> đặt BREVO_API_KEY để gửi email qua
+      # HTTP API (cổng 443). SMTP bên dưới chỉ dùng làm fallback ở local.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: DMRS
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USERNAME
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      # false = xử lý tài liệu ngay trong request (không cần worker). Đặt true khi bật worker.
+      - key: INGEST_ASYNC
+        value: "false"
+      # true = tự tạo tài khoản demo khi khởi động (bật cho lần deploy đầu, sau có thể tắt).
+      - key: SEED_DEMO
+        value: "true"
+      # false = trích xuất tài liệu nhẹ (pypdf/docx/pptx), KHÔNG cần docling/torch →
+      # tránh OOM trên instance RAM thấp. Đặt true nếu instance >=2GB và muốn chất lượng cao.
+      - key: USE_DOCLING
+        value: "false"
+      # Proxy lấy transcript YouTube (Render hay bị YouTube chặn IP datacenter).
+      # Điền http://user:pass@host:port nếu có proxy dân dụng; trống = bỏ qua, khi đó
+      # nạp video YouTube bằng scripts/ingest_youtube.py từ máy cá nhân.
+      - key: YOUTUBE_PROXY_URL
+        sync: false
+      # URL frontend (điền sau khi frontend có domain) để cấu hình CORS.
+      - key: CORS_ORIGINS
+        sync: false
+      # Google OAuth Client ID (đăng nhập bằng Gmail) — backend xác minh ID token.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+services:
+  # ---- Redis / Key Value (hàng đợi xử lý tài liệu) ----
+  - type: redis
+    name: ai20k-redis
+    plan: free
+    ipAllowList: []   # chỉ truy cập nội bộ trong Render
+
+  # ---- Backend API (FastAPI, Docker) ----
+  - type: web
+    name: ai20k-backend
+    runtime: docker
+    # Ghim NHÁNH deploy rõ ràng. Bỏ trống → Render tự suy ra nhánh; nếu khác nhánh
+    # đang được cập nhật thì backend KHÔNG bao giờ tạo deploy mới. Ghim cứng "main"
+    # để mọi push/merge vào main đều kích hoạt build mới cho backend (đồng bộ với FE).
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free            # KHUYẾN NGHỊ: "starter" trở lên — free bị ngủ (cold start 30-60s) + thiếu RAM cho docling
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - fromGroup: ai20k-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai20k-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: ai20k-redis
+          property: connectionString
+
+  # ---- Frontend (React/Vite → Static Site) ----
+  - type: web
+    name: ai20k-frontend
+    runtime: static
+    branch: main          # cùng nhánh với backend → FE+BE luôn redeploy đồng bộ.
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    autoDeploy: true
+    envVars:
+      # Điền URL backend (vd. https://ai20k-backend.onrender.com) — nhúng lúc build.
+      - key: VITE_API_URL
+        sync: false
+      # Google OAuth Client ID (cùng giá trị GOOGLE_CLIENT_ID của backend) — nhúng lúc build.
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # ---- Worker xử lý tài liệu nền (TÙY CHỌN — cần plan trả phí) ----
+  # Bỏ comment khi đã bật INGEST_ASYNC=true và dùng plan hỗ trợ background worker.
+  # - type: worker
+  #   name: ai20k-worker
+  #   runtime: docker
+  #   dockerfilePath: ./Dockerfile
+  #   dockerContext: .
+  #   dockerCommand: python -m src.worker
+  #   plan: starter
+  #   envVars:
+  #     - fromGroup: ai20k-shared
+  #     - key: DATABASE_URL
+  #       fromDatabase:
+  #         name: ai20k-db
+  #         property: connectionString
+  #     - key: REDIS_URL
+  #       fromService:
+  #         type: redis
+  #         name: ai20k-redis
+  #         property: connectionString

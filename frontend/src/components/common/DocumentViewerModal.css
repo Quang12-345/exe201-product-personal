@@ -1,0 +1,277 @@
+.dv-backdrop {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.dv-modal {
+  background: #fff; border-radius: 14px; overflow: hidden;
+  width: 900px; max-width: 100%; height: 80vh; max-height: 80vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+}
+.dv-modal.is-expanded { width: 100%; height: 95vh; max-height: 95vh; }
+
+.dv-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+.dv-title { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.dv-file-icon {
+  width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+  background: #fee2e2; color: #dc2626;
+  display: flex; align-items: center; justify-content: center;
+}
+.dv-name { font-weight: 600; font-size: 15px; color: var(--color-text, #1e293b);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 620px; }
+.dv-sub { font-size: 12px; color: var(--color-text-muted, #64748b); }
+.dv-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.dv-icon-btn {
+  width: 34px; height: 34px; border: none; background: none; cursor: pointer;
+  border-radius: 8px; color: var(--color-text-muted, #64748b);
+  display: flex; align-items: center; justify-content: center;
+}
+.dv-icon-btn:hover { background: var(--color-secondary, #f1f5f9); }
+
+.dv-body { flex: 1; min-height: 0; background: #1e293b; }
+.dv-frame { width: 100%; height: 100%; border: none; display: block; }
+.dv-docx-shell {
+  position: relative;
+  height: 100%;
+  overflow: auto;
+  background: #e5e7eb;
+}
+.dv-docx-view {
+  min-height: 100%;
+}
+.dv-docx-view .docx-wrapper {
+  min-height: 100%;
+  background: #e5e7eb;
+  padding: 24px 16px;
+}
+.dv-docx-view .docx {
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.16);
+}
+.dv-docx-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  color: #fff;
+}
+.dv-link-preview {
+  width: 100%; height: 100%; min-width: 0; display: flex; flex-direction: column;
+  background: #fff;
+}
+.dv-link-toolbar {
+  min-height: 52px; padding: 8px 14px; border-bottom: 1px solid var(--color-border, #e5e7eb);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff;
+}
+.dv-link-tabs { display: inline-flex; gap: 4px; min-width: 0; }
+.dv-link-tab,
+.dv-link-open {
+  height: 36px; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px;
+  font-family: inherit; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.dv-link-tab {
+  border: 1px solid transparent; background: transparent; color: #475569; padding: 0 11px;
+  cursor: pointer;
+}
+.dv-link-tab:hover { background: #f1f5f9; }
+.dv-link-tab.is-active { background: #e8f0fe; color: #1d4ed8; border-color: #bfdbfe; }
+.dv-link-open {
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; padding: 0 12px;
+  text-decoration: none; flex-shrink: 0;
+}
+.dv-link-open:hover { background: #dbeafe; }
+.dv-link-body { flex: 1; min-height: 0; background: #fff; }
+.dv-text {
+  margin: 0; height: 100%; overflow: auto; padding: 22px 26px;
+  background: #fff; color: #1e293b; white-space: pre-wrap; word-break: break-word;
+  font-family: inherit; font-size: 14px; line-height: 1.7;
+}
+.dv-state { padding: 40px; text-align: center; color: #cbd5e1; font-size: 14px; }
+.dv-error { color: #fca5a5; }
+
+.dv-foot {
+  display: flex; justify-content: flex-end;
+  padding: 12px 18px; border-top: 1px solid var(--color-border, #e5e7eb);
+}
+.dv-download {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--color-primary-dark, #1e429f); color: #fff;
+  border: none; border-radius: 9px; padding: 9px 18px; font-size: 14px;
+  font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.dv-download:hover { opacity: 0.92; }
+
+/* Dark mode: nền + viền cho khớp theme tối */
+[data-theme='dark'] .dv-modal { background: #1e293b; }
+[data-theme='dark'] .dv-head,
+[data-theme='dark'] .dv-foot { border-color: #334155; }
+[data-theme='dark'] .dv-icon-btn:hover { background: #273449; }
+[data-theme='dark'] .dv-link-preview,
+[data-theme='dark'] .dv-link-toolbar,
+[data-theme='dark'] .dv-link-body { background: #0f172a; }
+[data-theme='dark'] .dv-link-toolbar { border-color: #334155; }
+[data-theme='dark'] .dv-link-tab { color: #cbd5e1; }
+[data-theme='dark'] .dv-link-tab:hover { background: #1e293b; }
+[data-theme='dark'] .dv-link-tab.is-active { background: #172554; color: #bfdbfe; border-color: #1d4ed8; }
+[data-theme='dark'] .dv-link-open { background: #172554; color: #bfdbfe; border-color: #1d4ed8; }
+[data-theme='dark'] .dv-link-open:hover { background: #1e3a8a; }
+[data-theme='dark'] .dv-text { background: #0f172a; color: #e2e8f0; }
+[data-theme='dark'] .dv-docx-shell,
+[data-theme='dark'] .dv-docx-view .docx-wrapper { background: #111827; }
+
+/* Đoạn được AI trích dẫn — thẻ gọn gàng, chuyên nghiệp */
+.dv-quote {
+  margin: 10px 16px 0;
+  padding: 10px 14px 11px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+}
+.dv-quote-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.dv-quote-icon { display: inline-flex; color: #b45309; }
+.dv-quote-title { font-size: 12px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: .03em; }
+.dv-quote-page {
+  font-size: 11.5px; font-weight: 600; color: #92400e;
+  background: #fde68a; border-radius: 999px; padding: 1px 8px;
+}
+.dv-quote-toggle {
+  margin-left: auto; background: none; border: none; padding: 0;
+  font-size: 12px; font-weight: 600; color: #b45309; cursor: pointer; font-family: inherit;
+}
+.dv-quote-toggle:hover { text-decoration: underline; }
+.dv-quote-body {
+  margin: 0; font-size: 13px; line-height: 1.55; color: #57534e;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dv-quote-body.is-open { display: block; -webkit-line-clamp: unset; max-height: 180px; overflow-y: auto; }
+.dv-mark {
+  background: #fde047;
+  border-radius: 3px;
+  padding: 1px 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+[data-theme='dark'] .dv-quote { background: #2a2109; border-color: #713f12; }
+[data-theme='dark'] .dv-quote-title, [data-theme='dark'] .dv-quote-icon { color: #fbbf24; }
+[data-theme='dark'] .dv-quote-page { background: #713f12; color: #fef3c7; }
+[data-theme='dark'] .dv-quote-toggle { color: #fbbf24; }
+[data-theme='dark'] .dv-quote-body { color: #d6d3d1; }
+[data-theme='dark'] .dv-mark { background: #a16207; color: #fefce8; }
+
+@media (max-width: 900px) {
+  .dv-backdrop {
+    padding: 16px;
+  }
+
+  .dv-modal {
+    width: 100%;
+    height: calc(100dvh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+
+  .dv-name {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .dv-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .dv-modal,
+  .dv-modal.is-expanded {
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .dv-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .dv-title {
+    align-items: flex-start;
+  }
+
+  .dv-name {
+    max-width: none;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .dv-actions {
+    justify-content: flex-end;
+  }
+
+  .dv-body {
+    background: #111827;
+  }
+
+  .dv-link-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 12px;
+  }
+
+  .dv-link-tabs {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .dv-link-tab,
+  .dv-link-open {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dv-text {
+    padding: 18px 16px;
+    font-size: 13px;
+  }
+
+  .dv-docx-view .docx-wrapper {
+    padding: 16px 10px;
+  }
+
+  .dv-quote {
+    margin: 10px 12px 0;
+    padding: 10px 12px;
+  }
+
+  .dv-quote-head {
+    flex-wrap: wrap;
+  }
+
+  .dv-quote-toggle {
+    margin-left: 0;
+  }
+
+  .dv-state {
+    padding: 28px 18px;
+  }
+
+  .dv-foot {
+    padding: 12px 14px;
+  }
+
+  .dv-download {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,32 @@
+.nt-toast-wrap {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.nt-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #16a34a;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 360px;
+  animation: nt-toast-in 0.2s ease;
+}
+.nt-toast--error {
+  background: #dc2626;
+}
+.nt-toast svg { flex-shrink: 0; }
+@keyframes nt-toast-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

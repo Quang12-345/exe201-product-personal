@@ -1,0 +1,85 @@
+/* Xem trước tài liệu nhúng trực tiếp trong trang */
+.dp-box {
+  width: 100%;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1e293b;
+  display: flex;
+}
+.dp-frame { width: 100%; height: 100%; border: none; display: block; }
+.dp-docx-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: #e5e7eb;
+}
+.dp-docx-view {
+  min-height: 100%;
+}
+.dp-docx-view .docx-wrapper {
+  min-height: 100%;
+  background: #e5e7eb;
+  padding: 24px 16px;
+}
+.dp-docx-view .docx {
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.16);
+}
+.dp-docx-state {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  color: #fff;
+}
+.dp-link-preview {
+  width: 100%; height: 100%; min-width: 0; display: flex; flex-direction: column;
+  background: #fff;
+}
+.dp-link-toolbar {
+  min-height: 52px; padding: 8px 12px; border-bottom: 1px solid var(--color-border, #e5e7eb);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff;
+}
+.dp-link-tabs { display: inline-flex; gap: 4px; min-width: 0; }
+.dp-link-tab,
+.dp-link-open {
+  height: 36px; border-radius: 8px; display: inline-flex; align-items: center; gap: 7px;
+  font-family: inherit; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.dp-link-tab {
+  border: 1px solid transparent; background: transparent; color: #475569; padding: 0 11px;
+  cursor: pointer;
+}
+.dp-link-tab:hover { background: #f1f5f9; }
+.dp-link-tab.is-active { background: #e8f0fe; color: #1d4ed8; border-color: #bfdbfe; }
+.dp-link-open {
+  border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; padding: 0 12px;
+  text-decoration: none; flex-shrink: 0;
+}
+.dp-link-open:hover { background: #dbeafe; }
+.dp-link-body { flex: 1; min-height: 0; background: #fff; }
+.dp-text {
+  margin: 0; width: 100%; height: 100%; overflow: auto; padding: 22px 26px;
+  background: #fff; color: #1e293b; white-space: pre-wrap; word-break: break-word;
+  font-family: inherit; font-size: 14px; line-height: 1.7;
+}
+.dp-state {
+  width: 100%; display: flex; align-items: center; justify-content: center;
+  color: #cbd5e1; font-size: 14px; padding: 40px;
+}
+.dp-error { color: #fca5a5; }
+
+[data-theme='dark'] .dp-box { border-color: #334155; }
+[data-theme='dark'] .dp-link-preview,
+[data-theme='dark'] .dp-link-toolbar,
+[data-theme='dark'] .dp-link-body { background: #0f172a; }
+[data-theme='dark'] .dp-link-toolbar { border-color: #334155; }
+[data-theme='dark'] .dp-link-tab { color: #cbd5e1; }
+[data-theme='dark'] .dp-link-tab:hover { background: #1e293b; }
+[data-theme='dark'] .dp-link-tab.is-active { background: #172554; color: #bfdbfe; border-color: #1d4ed8; }
+[data-theme='dark'] .dp-link-open { background: #172554; color: #bfdbfe; border-color: #1d4ed8; }
+[data-theme='dark'] .dp-link-open:hover { background: #1e3a8a; }
+[data-theme='dark'] .dp-text { background: #0f172a; color: #e2e8f0; }
+[data-theme='dark'] .dp-docx-shell,
+[data-theme='dark'] .dp-docx-view .docx-wrapper { background: #111827; }

@@ -1,0 +1,656 @@
+/* ==========================================================================
+   StudyMind Login Screen — Neo-brutalist Aesthetic (khớp thiết kế mẫu)
+   ========================================================================== */
+
+.studymind-login-page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background-color: #eaf0fb;
+  color-scheme: light;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+/* Card chính */
+.studymind-card {
+  width: 100%;
+  max-width: 440px;
+  background-color: #f0f5ff; /* Tông xanh pastel nhẹ chuẩn như trong ảnh */
+  border: 2.8px solid #000000;
+  border-radius: 26px;
+  box-shadow: 6px 6px 0px #000000;
+  padding: 38px 32px 32px 32px;
+  box-sizing: border-box;
+  position: relative;
+  transition: box-shadow 0.2s ease;
+}
+
+/* Logo trên cùng */
+.studymind-logo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.studymind-logo-box {
+  width: 54px;
+  height: 54px;
+  background-color: #2563eb;
+  border: 2.2px solid #000000;
+  border-radius: 14px;
+  box-shadow: 2.5px 2.5px 0px #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Tiêu đề & phụ đề */
+.studymind-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: #000000;
+  text-align: center;
+  letter-spacing: -0.4px;
+  line-height: 1.25;
+}
+
+.studymind-subtitle {
+  margin: 6px 0 22px 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: #4b5563;
+  text-align: center;
+}
+
+/* Thông báo cảnh báo / lỗi */
+.studymind-alert {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  line-height: 1.45;
+  border: 2px solid #000000;
+}
+
+.studymind-alert--error {
+  background-color: #fee2e2;
+  border-color: #dc2626;
+  color: #991b1b;
+}
+
+.studymind-alert--success {
+  background-color: #dcfce7;
+  border-color: #16a34a;
+  color: #166534;
+}
+
+/* KHỐI CHỌN VAI TRÒ */
+.studymind-role-section {
+  margin-bottom: 20px;
+}
+
+.studymind-role-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #000000;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.studymind-role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.studymind-role-card {
+  background-color: #ffffff;
+  border: 1.8px solid #000000;
+  border-radius: 14px;
+  padding: 12px 14px;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.studymind-role-card:hover {
+  background-color: #fafcff;
+}
+
+/* Trạng thái được chọn (Selected) */
+.studymind-role-card.is-selected {
+  border: 2.8px solid #000000;
+  box-shadow: 2.5px 2.5px 0px #000000;
+  background-color: #ffffff;
+}
+
+/* Card Quản trị viên (Admin) */
+.studymind-role-card--admin {
+  grid-column: 1 / -1;
+  min-height: 60px;
+  background-color: #ffffff;
+}
+
+.studymind-role-card--admin.is-selected {
+  background-color: #fefce8;
+  border-color: #000000;
+}
+
+.studymind-role-admin-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studymind-role-admin-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background-color: #000000;
+  color: #facc15;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #000000;
+}
+
+.studymind-role-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.studymind-role-icon {
+  display: flex;
+  align-items: center;
+  color: #000000;
+}
+
+.studymind-role-radio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Radio button styles */
+.studymind-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.studymind-radio--checked {
+  border: 4.8px solid #000000;
+  background-color: #ffffff;
+}
+
+.studymind-radio--unchecked {
+  border: 2px solid #9ca3af;
+  background-color: transparent;
+}
+
+.studymind-role-text {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #000000;
+  margin-top: 10px;
+}
+
+.studymind-role-card.is-selected .studymind-role-text {
+  font-weight: 800;
+}
+
+/* Khối thông tin cổng xác thực Quản trị viên */
+.studymind-admin-box {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 14px;
+  box-shadow: 3px 3px 0px #000000;
+  padding: 13px 14px;
+  margin-bottom: 18px;
+  animation: studymindFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes studymindFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.studymind-admin-box-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #000000;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.studymind-admin-box-desc {
+  margin: 0 0 9px 0;
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.studymind-admin-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.studymind-admin-domains-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.studymind-admin-domain-chip {
+  background-color: #fef9c3;
+  border: 1.6px solid #000000;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #854d0e;
+  cursor: pointer;
+  box-shadow: 1px 1px 0px #000000;
+  transition: all 0.1s ease;
+  font-family: inherit;
+}
+
+.studymind-admin-domain-chip:hover {
+  background-color: #fef08a;
+  transform: translateY(-1px);
+}
+
+.studymind-admin-domain-chip:active {
+  transform: translateY(1px);
+  box-shadow: 0px 0px 0px #000000;
+}
+
+/* Field input */
+.studymind-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.studymind-field {
+  margin-bottom: 16px;
+}
+
+.studymind-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 7px;
+}
+
+.studymind-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.studymind-forgot-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.studymind-forgot-link:hover {
+  text-decoration: underline;
+}
+
+.studymind-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.studymind-input {
+  width: 100%;
+  height: 48px;
+  background-color: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 11px;
+  padding: 0 16px;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #000000 !important;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.studymind-input:focus {
+  border-color: #000000;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.studymind-input--valid {
+  border-color: #16a34a !important;
+}
+
+.studymind-input--invalid {
+  border-color: #dc2626 !important;
+}
+
+.studymind-suffix-feedback {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 6px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  line-height: 1.35;
+  border: 1.5px solid #000000;
+  animation: studymindFadeIn 0.15s ease-out;
+}
+
+.studymind-suffix-feedback--valid {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #15803d;
+}
+
+.studymind-suffix-feedback--invalid {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #dc2626;
+}
+
+.studymind-input::placeholder {
+  color: #374151;
+  font-weight: 400;
+}
+
+.studymind-input--password {
+  padding-right: 44px;
+}
+
+.studymind-eye-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.studymind-eye-btn:hover {
+  color: #000000;
+}
+
+/* Nút Đăng nhập chính */
+.studymind-btn-primary {
+  width: 100%;
+  height: 50px;
+  background-color: #3b66f5; /* Xanh dương đậm chất hiện đại */
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: inherit;
+  border: 2.4px solid #000000;
+  border-radius: 12px;
+  box-shadow: 0px 4px 0px #000000;
+  cursor: pointer;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+}
+
+.studymind-btn-primary:hover:not(:disabled) {
+  background-color: #3258db;
+}
+
+.studymind-btn-primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0px 2px 0px #000000;
+}
+
+.studymind-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Nút Đăng nhập Quản trị viên (Admin) */
+.studymind-btn-primary--admin {
+  background-color: #0f172a;
+  color: #ffffff;
+}
+
+.studymind-btn-primary--admin:hover:not(:disabled) {
+  background-color: #1e293b;
+}
+
+.studymind-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.studymind-btn-content svg path {
+  stroke: #ffffff;
+}
+
+/* Divider "hoặc tiếp tục với" */
+.studymind-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 22px 0;
+}
+
+.studymind-divider::before,
+.studymind-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1.5px solid #000000;
+}
+
+.studymind-divider span {
+  padding: 0 12px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* Khối nút Google */
+.studymind-google-container {
+  width: 100%;
+}
+
+.studymind-google-interactive-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.studymind-btn-google {
+  width: 100%;
+  height: 50px;
+  background-color: #ffffff;
+  color: #000000;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  border: 2.4px solid #000000;
+  border-radius: 12px;
+  box-shadow: 0px 4px 0px #000000;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+}
+
+.studymind-btn-google:hover:not(:disabled) {
+  background-color: #fafbfc;
+}
+
+.studymind-btn-google:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0px 2px 0px #000000;
+}
+
+/* Lớp GIS trong suốt overlay lên trên nút để nhận click xác thực Google */
+.studymind-google-gis-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.001;
+  z-index: 10;
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.studymind-google-gis-layer > div,
+.studymind-google-gis-layer iframe {
+  width: 100% !important;
+  height: 100% !important;
+  cursor: pointer !important;
+}
+
+/* Khối cảnh báo bảo mật Quản trị viên (thay thế Google login) */
+.studymind-admin-security-note {
+  margin-top: 20px;
+  background-color: #f8fafc;
+  border: 2px dashed #000000;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  animation: studymindFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.studymind-security-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.studymind-security-icon {
+  font-size: 15px;
+}
+
+.studymind-admin-security-note p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* Thanh trợ giúp tài khoản thử nghiệm nhanh */
+.studymind-demo-helper {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px dashed #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.studymind-demo-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.studymind-demo-chip {
+  background-color: #ffffff;
+  border: 1.5px solid #000000;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  box-shadow: 1px 1px 0px #000000;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.studymind-demo-chip:hover {
+  background-color: #f1f5f9;
+}
+
+.studymind-demo-chip:active {
+  transform: translateY(1px);
+  box-shadow: 0px 0px 0px #000000;
+}
+
+.studymind-demo-chip--admin {
+  background-color: #fef08a;
+  border-color: #000000;
+  color: #854d0e;
+}
+
+.studymind-demo-chip--admin:hover {
+  background-color: #fde047;
+}
+
+/* Responsive cho màn hình điện thoại */
+@media (max-width: 480px) {
+  .studymind-card {
+    padding: 26px 20px 24px 20px;
+    border-radius: 20px;
+    box-shadow: 4px 4px 0px #000000;
+  }
+
+  .studymind-title {
+    font-size: 23px;
+  }
+
+  .studymind-role-text {
+    font-size: 12.5px;
+  }
+}

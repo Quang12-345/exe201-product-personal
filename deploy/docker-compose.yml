@@ -1,0 +1,27 @@
+# Hạ tầng phụ trợ cho AI20K: Redis (message queue cho xử lý tài liệu nền).
+#
+# Chạy:   docker compose -f deploy/docker-compose.yml up -d
+# Kiểm tra: docker compose -f deploy/docker-compose.yml ps
+# Dừng:   docker compose -f deploy/docker-compose.yml down
+#
+# Sau khi Redis chạy, bật hàng đợi bằng INGEST_ASYNC=true trong .env rồi khởi động worker:
+#   python -m src.worker
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: ai20k-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ai20k_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  ai20k_redis_data:

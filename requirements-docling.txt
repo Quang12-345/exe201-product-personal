@@ -1,0 +1,7 @@
+# Phụ thuộc NẶNG cho chế độ USE_DOCLING=true (docling kéo theo torch ~2GB).
+# Chỉ cài khi muốn bóc tách tài liệu chất lượng cao và máy/instance có >=2GB RAM.
+#
+#   pip install -r requirements.txt -r requirements-docling.txt
+#
+# Trên Render/instance nhỏ: KHÔNG cài file này, để USE_DOCLING=false (parser nhẹ).
+docling>=2.70.0,<3.0.0

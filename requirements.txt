@@ -1,0 +1,81 @@
+# ============================================================
+# Trung Tam Tri Thuc AI - Python 3.11 requirements
+# RAG Knowledge Hub: FastAPI + LangChain + PostgreSQL + Qdrant + Docling
+# ============================================================
+
+# Core API
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.34.0,<1.0.0
+pydantic>=2.10.0,<3.0.0
+pydantic-settings>=2.7.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+python-multipart>=0.0.20,<1.0.0
+aiofiles>=24.1.0,<25.0.0
+aiosmtplib>=5.1.0,<6.0.0
+
+# AI / LangChain / RAG
+langchain>=0.3.0,<0.4.0
+langchain-community>=0.3.0,<0.4.0
+langchain-openai>=0.3.0,<0.4.0
+langchain-anthropic>=0.3.0,<0.4.0
+langchain-qdrant>=0.2.0,<0.3.0
+langchain-text-splitters>=0.3.0,<0.4.0
+langgraph>=0.2.0,<0.3.0
+openai>=1.58.0,<2.0.0
+langsmith>=0.2.0,<0.3.0
+tiktoken>=0.8.0,<1.0.0
+
+# Database - PostgreSQL / SQLite for local testing
+sqlalchemy[asyncio]>=2.0.0,<3.0.0
+greenlet>=3.0.0
+asyncpg>=0.30.0,<1.0.0
+aiosqlite>=0.20.0,<1.0.0
+alembic>=1.14.0,<2.0.0
+
+# Vector Store - Qdrant
+qdrant-client>=1.12.0,<2.0.0
+
+# Object storage - Cloudflare R2 (S3-compatible) for original documents
+boto3>=1.35.0,<2.0.0
+
+# Message queue - Redis + arq (async) for background document processing
+redis>=5.2.0,<6.0.0
+arq>=0.26.0,<1.0.0
+
+# Document parsing / ingestion
+# LƯU Ý: docling (kéo theo torch ~2GB) ĐÃ TÁCH sang requirements-docling.txt để
+# image deploy nhẹ + build nhanh, tránh OOM/timeout khi build trên Render.
+#   - USE_DOCLING=false (mặc định deploy): chỉ cần các parser nhẹ bên dưới.
+#   - USE_DOCLING=true (chất lượng cao, cần >=2GB RAM): cài thêm requirements-docling.txt.
+numpy>=1.26.4,<3.0.0
+
+# Parser nhẹ cho PDF/DOCX/PPTX (đường xử lý mặc định khi USE_DOCLING=false)
+pypdf>=5.1.0,<6.0.0
+python-docx>=1.1.2,<2.0.0
+python-pptx>=1.0.2,<2.0.0
+pillow>=11.0.0,<12.0.0
+pytesseract>=0.3.13,<1.0.0
+
+# Trích xuất nội dung trang web (tiêu đề h1 + body) cho link web vào RAG
+beautifulsoup4>=4.12.0,<5.0.0
+
+# Lấy phụ đề (transcript) video YouTube cho RAG (kèm mốc thời gian)
+# yt-dlp: bộ lấy CHÍNH (bền với việc YouTube chặn IP datacenter nhờ dùng player API);
+# youtube-transcript-api: dự phòng.
+yt-dlp>=2024.11.4
+youtube-transcript-api>=0.6.2,<1.0.0
+
+# Auth / user management
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0
+email-validator>=2.2.0
+google-auth>=2.35.0,<3.0.0
+
+# Dev tools
+ruff>=0.8.0
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+pytest-cov>=6.0.0
+httpx>=0.28.0
+rank-bm25>=0.2.2

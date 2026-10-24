@@ -1,0 +1,47 @@
+.tour-hl {
+  position: fixed;
+  z-index: 9998;
+  border-radius: 10px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.6);
+  transition: top 0.22s ease, left 0.22s ease, width 0.22s ease, height 0.22s ease;
+  pointer-events: none;
+}
+.tour-pop {
+  position: fixed;
+  z-index: 9999;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+  animation: tour-in 0.18s ease;
+}
+@keyframes tour-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.tour-pop h4 { margin: 0 0 6px; font-size: 15px; color: #0f172a; }
+.tour-pop p { margin: 0 0 14px; font-size: 13.5px; color: #475569; line-height: 1.45; }
+.tour-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tour-right { display: flex; align-items: center; gap: 8px; }
+.tour-steps { font-size: 12px; color: #94a3b8; margin-right: 2px; }
+.tour-skip { background: none; border: none; color: #94a3b8; font-size: 12.5px; cursor: pointer; font-family: inherit; padding: 4px; }
+.tour-skip:hover { color: #64748b; }
+.tour-btn {
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.tour-btn--ghost { background: none; border-color: var(--color-border, #e5e7eb); color: #475569; }
+.tour-btn--ghost:hover { background: #f1f5f9; }
+.tour-btn--primary { background: var(--color-primary, #1a56db); color: #fff; }
+.tour-btn--primary:hover { background: #1648b8; }
+
+/* ---- Dark mode ---- */
+[data-theme='dark'] .tour-hl { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.72); border-color: #93c5fd; }
+[data-theme='dark'] .tour-pop { background: #1e293b; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6); }
+[data-theme='dark'] .tour-pop h4 { color: #f1f5f9; }
+[data-theme='dark'] .tour-pop p { color: #cbd5e1; }
+[data-theme='dark'] .tour-btn--ghost { border-color: #334155; color: #cbd5e1; }
+[data-theme='dark'] .tour-btn--ghost:hover { background: #273449; }

@@ -1,0 +1,133 @@
+# Full stack local: PostgreSQL + Redis + Qdrant + Backend (FastAPI) + Worker (arq) + Frontend (nginx).
+#
+#   docker compose up -d --build
+#   docker compose exec backend python scripts/seed_demo.py
+#   docker compose exec backend python scripts/seed_academic.py
+#   Frontend: http://localhost:3000   |   Backend: http://localhost:8000/docs
+#
+# Tài liệu RAG sử dụng Qdrant + OpenAI (cấu hình trong .env).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai20k-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ai20k
+      POSTGRES_PASSWORD: ai20k
+      POSTGRES_DB: ai20k
+    ports:
+      - "5434:5432"
+    volumes:
+      - ai20k_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai20k"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai20k-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - ai20k_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: ai20k-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ai20k_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai20k-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Ghi đè để trỏ vào service trong mạng compose (ưu tiên hơn .env).
+      DATABASE_URL: postgresql+asyncpg://ai20k:ai20k@postgres:5432/ai20k
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      APP_ENV: development
+      CORS_ORIGINS: "*"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./datasets:/app/datasets
+      - ./src:/app/src
+      - ./migrations:/app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai20k-worker
+    restart: unless-stopped
+    command: ["python", "-m", "src.worker"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ai20k:ai20k@postgres:5432/ai20k
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      APP_ENV: development
+    volumes:
+      - ./data:/app/data
+      - ./datasets:/app/datasets
+      - ./src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+    container_name: ai20k-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  ai20k_pg_data:
+  ai20k_redis_data:
+  ai20k_qdrant_data:
