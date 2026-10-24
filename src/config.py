@@ -303,6 +303,22 @@ class Settings(BaseSettings):
     ai_log_api_key: str = Field(default="", validation_alias="AI_LOG_API_KEY")
     ai_log_dir: str = Field(default=".ai-log", validation_alias="AI_LOG_DIR")
 
+    def model_post_init(self, __context) -> None:
+        if isinstance(self.vnpay_tmn_code, str):
+            self.vnpay_tmn_code = self.vnpay_tmn_code.strip()
+        if isinstance(self.vnpay_hash_secret, str):
+            self.vnpay_hash_secret = self.vnpay_hash_secret.strip()
+        if isinstance(self.vnpay_return_url, str):
+            self.vnpay_return_url = self.vnpay_return_url.strip()
+        if isinstance(self.vnpay_payment_url, str):
+            self.vnpay_payment_url = self.vnpay_payment_url.strip()
+        if isinstance(self.vnpay_query_url, str):
+            self.vnpay_query_url = self.vnpay_query_url.strip()
+        if isinstance(self.frontend_url, str):
+            self.frontend_url = self.frontend_url.strip().rstrip("/")
+        if isinstance(self.google_client_id, str):
+            self.google_client_id = self.google_client_id.strip()
+
 
 @lru_cache
 def get_settings() -> Settings:

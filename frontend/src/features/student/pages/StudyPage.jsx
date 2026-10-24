@@ -97,6 +97,9 @@ export default function StudyPage() {
   }
 
   useEffect(() => {
+    if (paymentResult === 'success') {
+      getBillingStatus().then(setBilling).catch(() => {})
+    }
     if (paymentResult !== 'pending') return undefined
     let attempts = 0
     const timer = window.setInterval(async () => {

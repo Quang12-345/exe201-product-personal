@@ -228,8 +228,13 @@ function ChatPage() {
     setBillingError('')
     setCheckoutBusy(true)
     try {
-      const checkout = await startProCheckout()
-      window.location.assign(checkout.checkout_url)
+      const checkout = await startProCheckout('/student/chat')
+      const redirectUrl = checkout?.checkout_url || checkout?.payment_url
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+      } else {
+        setBillingError('Không nhận được đường dẫn thanh toán từ VNPay.')
+      }
     } catch (error) {
       const detail = error?.response?.data?.detail
       setBillingError(typeof detail === 'string' ? detail : detail?.message || 'Không thể tạo thanh toán VNPay. Vui lòng thử lại.')
@@ -257,6 +262,12 @@ function ChatPage() {
       setPaymentCheckBusy(false)
     }
   }
+
+  useEffect(() => {
+    if (paymentResult === 'success') {
+      getBillingStatus().then(setBilling).catch(() => {})
+    }
+  }, [paymentResult])
 
   useEffect(() => {
     if (paymentResult !== 'pending') return undefined

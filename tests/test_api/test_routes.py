@@ -129,3 +129,44 @@ def test_update_user_request_rejects_id():
 async def test_agent_status(client):
     response = await client.get("/api/v1/status")
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_vnpay_return_handles_invalid_signature_without_error(client):
+    from unittest.mock import AsyncMock
+    from src.db.session import get_db
+    from src.main import app
+
+    fake_db = AsyncMock()
+    fake_db.scalar = AsyncMock(return_value=None)
+    app.dependency_overrides[get_db] = lambda: fake_db
+
+    response = await client.get(
+        "/api/v1/payments/vnpay/return",
+        params={"vnp_TxnRef": "999888", "vnp_SecureHash": "invalid"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers.get("location", "")
+    assert "payment=invalid" in location
+    assert "order_code=999888" in location
+
+
+@pytest.mark.asyncio
+async def test_vnpay_return_handles_empty_params_without_error(client):
+    from unittest.mock import AsyncMock
+    from src.db.session import get_db
+    from src.main import app
+
+    fake_db = AsyncMock()
+    fake_db.scalar = AsyncMock(return_value=None)
+    app.dependency_overrides[get_db] = lambda: fake_db
+
+    response = await client.get(
+        "/api/v1/payments/vnpay/return",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers.get("location", "")
+    assert "payment=invalid" in location
+    assert "order_code=0" in location

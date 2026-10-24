@@ -823,6 +823,21 @@ async def billing_me(
     return await get_billing_status(session, user_id=user.id, user_role=_role_name(user))
 
 
+def _extract_ipv4(request: Request | None) -> str:
+    if not request:
+        return "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        ip = forwarded.split(",")[0].strip()
+    elif request.client and request.client.host:
+        ip = request.client.host.strip()
+    else:
+        ip = "127.0.0.1"
+    if not ip or ":" in ip:
+        ip = "127.0.0.1"
+    return ip[:45]
+
+
 @router.post(
     "/payments/vnpay/create",
     response_model=VnPayPaymentCreateResponse,
@@ -842,12 +857,22 @@ async def vnpay_checkout(
     session: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ) -> VnPayPaymentCreateResponse:
-    if _role_name(user) != "student":
+    user_role = _role_name(user)
+    if user_role not in ("student", "SV", None):
         raise HTTPException(status_code=403, detail="Gói Pro chỉ dành cho sinh viên.")
+    if getattr(user, "role_id", None) is None:
+        from src.repositories import user_repo
+
+        student_role = await user_repo.get_role_by_name(session, "student")
+        if student_role:
+            user.role_id = student_role.id
+            await session.commit()
+
+    ip_address = _extract_ipv4(request)
     result = await create_vnpay_checkout(
         session,
         user=user,
-        ip_address=request.client.host if request.client else "127.0.0.1",
+        ip_address=ip_address,
         return_to=payload.return_to,
     )
     return VnPayPaymentCreateResponse(**result)
@@ -865,7 +890,8 @@ async def reconcile_vnpay_payment(
     session: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ) -> VnPayReconcileResponse:
-    if _role_name(user) != "student":
+    user_role = _role_name(user)
+    if user_role not in ("student", "SV", None):
         raise HTTPException(status_code=403, detail="Chỉ sinh viên được kiểm tra thanh toán Pro.")
     result = await session.execute(
         select(PaymentTransaction).where(
@@ -873,14 +899,24 @@ async def reconcile_vnpay_payment(
             PaymentTransaction.user_id == user.id,
         )
     )
-    if result.scalar_one_or_none() is None:
+    payment = result.scalar_one_or_none()
+    if payment is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn thanh toán.")
+
+    if payment.status == "paid":
+        return VnPayReconcileResponse(
+            order_code=order_code,
+            status="paid",
+            message="Đã xác nhận thanh toán và kích hoạt Pro.",
+        )
+
     from src.config import get_settings
 
+    server_ip = (get_settings().vnpay_server_ip or "127.0.0.1").strip()
     status = await query_vnpay_and_reconcile(
         session,
         order_code=order_code,
-        ip_address=get_settings().vnpay_server_ip,
+        ip_address=server_ip,
     )
     return VnPayReconcileResponse(
         order_code=order_code,
@@ -907,56 +943,72 @@ async def vnpay_ipn(
     "/payments/vnpay/return",
     tags=["payments"],
     summary="VNPay browser return",
-    description="Verifies the return signature and redirects to the app. The IPN callback is authoritative for activation.",
+    description="Verifies the return signature and redirects to the app.",
 )
 @router.get("/billing/vnpay/return", include_in_schema=False)
 async def vnpay_return(request: Request, session: AsyncSession = Depends(get_db)):
     from src.config import get_settings
+    from src.services.billing import _complete_payment
 
     settings = get_settings()
+    tmn_code = (settings.vnpay_tmn_code or "").strip()
+    hash_secret = (settings.vnpay_hash_secret or "").strip()
     params = vnpay_params_from_request(request)
+
     status = "invalid"
-    if (
-        verify_vnpay_signature(params, settings.vnpay_hash_secret)
-        and params.get("vnp_TmnCode") == settings.vnpay_tmn_code
-    ):
-        try:
-            order_code = int(params.get("vnp_TxnRef", ""))
-            amount = int(params.get("vnp_Amount", ""))
-        except ValueError:
-            order_code = 0
-            amount = 0
+    payment = None
+    order_code = 0
+
+    try:
+        order_code = int(params.get("vnp_TxnRef", "0"))
+        amount = int(params.get("vnp_Amount", "0"))
+    except (ValueError, TypeError):
+        order_code = 0
+        amount = 0
+
+    if order_code > 0:
         payment = await session.scalar(
             select(PaymentTransaction).where(PaymentTransaction.order_code == order_code)
         )
-        if payment is not None and amount == payment.amount * 100:
+
+    is_valid_sig = bool(hash_secret) and verify_vnpay_signature(params, hash_secret)
+    is_matching_tmn = bool(tmn_code) and params.get("vnp_TmnCode", "").strip() == tmn_code
+
+    if is_valid_sig and is_matching_tmn and payment is not None:
+        if amount == payment.amount * 100:
             if payment.status == "paid":
                 status = "success"
             elif (
                 params.get("vnp_ResponseCode") == "00"
                 and params.get("vnp_TransactionStatus") == "00"
             ):
-                result = await query_vnpay_and_reconcile(
+                await _complete_payment(
                     session,
-                    order_code=order_code,
-                    ip_address=settings.vnpay_server_ip,
+                    payment,
+                    transaction_ref=params.get("vnp_TransactionNo"),
+                    verification_data=params,
                 )
-                status = "success" if result == "paid" else "pending"
+                status = "success"
             else:
+                payment.status = "failed"
+                payment.raw_webhook = params
+                payment.transaction_ref = params.get("vnp_TransactionNo")
+                await session.commit()
                 status = "failed"
         else:
             status = "failed"
+    elif payment is not None and payment.status == "paid":
+        status = "success"
+
     return_path = "/student/chat"
     if payment and payment.raw_webhook and isinstance(payment.raw_webhook, dict):
         custom_return = payment.raw_webhook.get("return_to")
         if custom_return and isinstance(custom_return, str) and custom_return.startswith("/student/"):
             return_path = custom_return
 
+    frontend_base = (settings.frontend_url or "http://localhost:5173").strip().rstrip("/")
     sep = "&" if "?" in return_path else "?"
-    target = (
-        f"{settings.frontend_url.rstrip('/')}{return_path}"
-        f"{sep}payment={status}&order_code={order_code}"
-    )
+    target = f"{frontend_base}{return_path}{sep}payment={status}&order_code={order_code}"
     return RedirectResponse(target, status_code=303)
 
 
