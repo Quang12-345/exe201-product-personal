@@ -1,14 +1,9 @@
 // Hằng số dùng chung. KHÔNG hard-code URL trong component.
-export const API_URL = (() => {
-  const envUrl = import.meta.env.VITE_API_URL
-  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-    return envUrl
-  }
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    return `${window.location.protocol}//${window.location.hostname}:8000`
-  }
-  return envUrl || 'http://localhost:8000'
-})()
+// URL backend (Render) nhúng lúc build qua VITE_API_URL. Bỏ "/" cuối để tránh "//api".
+export const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').trim().replace(/\/+$/, '')
+if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+  console.error('[config] Thiếu VITE_API_URL khi build — FE đang gọi http://localhost:8000.')
+}
 
 // Khóa lưu phiên đăng nhập trong localStorage (dùng chung FE).
 export const AUTH_STORAGE_KEY = 'dmrs_auth'

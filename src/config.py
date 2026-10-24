@@ -51,6 +51,8 @@ class Settings(BaseSettings):
         default="http://localhost:3000",
         validation_alias="CORS_ORIGINS",
     )
+    # Regex origin bổ sung, vd. "https://.*\.vercel\.app" để cho phép domain preview của Vercel.
+    cors_origin_regex: str = Field(default="", validation_alias="CORS_ORIGIN_REGEX")
 
     # LLM
     llm_provider: Literal["openai", "anthropic", "google"] = Field(
