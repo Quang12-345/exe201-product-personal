@@ -67,3 +67,6 @@ out/
 
 # Tài liệu người dùng upload (runtime, không commit)
 datasets/uploads/
+
+# Nested duplicate clone directory
+exe201-product-personal/
