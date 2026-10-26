@@ -20,8 +20,13 @@ class LoginResponse(BaseModel):
 
 class GmailLoginResponse(BaseModel):
     access_token: str
+    token: str | None = None
     token_type: str = "bearer"
     user: LoginUser
+
+    def model_post_init(self, __context) -> None:
+        if not self.token and self.access_token:
+            self.token = self.access_token
 
 
 class ForgotPasswordRequest(BaseModel):

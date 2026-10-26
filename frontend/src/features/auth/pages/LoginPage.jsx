@@ -174,10 +174,14 @@ function LoginPage() {
     setError(null);
   };
 
+  const isStudentRole = (role) => role === "student" || role === "SV";
+  const isLecturerRole = (role) => role === "lecturer" || role === "GV";
+  const isAdminRole = (role) => role === "admin" || role === "OPS";
+
   // Điều hướng sau khi đăng nhập thành công theo vai trò
   const goAfterLogin = (session) => {
     const role = session?.user?.role;
-    if (role === "student") {
+    if (!role || isStudentRole(role)) {
       try {
         sessionStorage.setItem("dmrs_start_new_chat", "1");
       } catch {
@@ -186,7 +190,7 @@ function LoginPage() {
       navigate("/student", { replace: true });
       return;
     }
-    if (role === "admin") {
+    if (isAdminRole(role)) {
       navigate("/admin", { replace: true });
       return;
     }
@@ -200,7 +204,7 @@ function LoginPage() {
     const actualRole = session?.user?.role;
 
     if (intendedRole === "admin") {
-      if (actualRole !== "admin") {
+      if (!isAdminRole(actualRole)) {
         logout();
         setError(
           'Tài khoản này không có quyền Quản trị viên (Admin). Vui lòng chọn đúng vai trò "Tôi là Giảng viên" hoặc "Tôi là Sinh viên" để đăng nhập.'
@@ -211,14 +215,14 @@ function LoginPage() {
     }
 
     if (intendedRole === "lecturer") {
-      if (actualRole === "admin") {
+      if (isAdminRole(actualRole)) {
         logout();
         setError(
           'Đây là tài khoản Quản trị viên (Admin). Vui lòng chuyển sang vai trò "Quản trị viên" để truy cập bảng điều khiển quản trị.'
         );
         return false;
       }
-      if (actualRole !== "lecturer") {
+      if (!isLecturerRole(actualRole)) {
         logout();
         setError(
           'Tài khoản này là tài khoản Sinh viên. Vui lòng chuyển sang vai trò "Tôi là Sinh viên" để đăng nhập.'
@@ -229,14 +233,14 @@ function LoginPage() {
     }
 
     if (intendedRole === "student") {
-      if (actualRole === "admin") {
+      if (isAdminRole(actualRole)) {
         logout();
         setError(
           'Đây là tài khoản Quản trị viên (Admin). Vui lòng chuyển sang vai trò "Quản trị viên" để truy cập bảng điều khiển quản trị.'
         );
         return false;
       }
-      if (actualRole !== "student") {
+      if (isLecturerRole(actualRole)) {
         logout();
         setError(
           'Tài khoản này là tài khoản Giảng viên. Vui lòng chuyển sang vai trò "Tôi là Giảng viên" để đăng nhập.'
@@ -328,7 +332,11 @@ function LoginPage() {
             }
 
             // Với Giảng viên: tài khoản Google phải có vai trò Giảng viên trong hệ thống
-            if (selectedRole === "lecturer" && session?.user?.role !== "lecturer" && session?.user?.role !== "admin") {
+            if (
+              selectedRole === "lecturer" &&
+              !isLecturerRole(session?.user?.role) &&
+              !isAdminRole(session?.user?.role)
+            ) {
               logout();
               setError(
                 'Tài khoản Google này là tài khoản Sinh viên (chưa được cấp quyền Giảng viên). Vui lòng chọn vai trò "Tôi là Sinh viên" hoặc đăng nhập tài khoản Giảng viên đã được cấp.'
@@ -350,10 +358,11 @@ function LoginPage() {
       });
 
       googleBtnRef.current.innerHTML = "";
-      const width = Math.min(
-        400,
-        Math.floor(googleBtnRef.current.offsetWidth) || 360
-      );
+      const containerWidth =
+        googleBtnRef.current.parentElement?.offsetWidth ||
+        googleBtnRef.current.offsetWidth ||
+        360;
+      const width = Math.max(240, Math.min(400, Math.floor(containerWidth)));
 
       window.google.accounts.id.renderButton(googleBtnRef.current, {
         theme: "outline",
@@ -361,7 +370,7 @@ function LoginPage() {
         width,
         text: "continue_with",
         shape: "rectangular",
-        logo_alignment: "center",
+        logo_alignment: "left",
         locale: "vi",
       });
       return true;
@@ -673,20 +682,10 @@ function LoginPage() {
             {/* Nút Google */}
             <div className="studymind-google-container">
               {GOOGLE_CLIENT_ID ? (
-                <div className="studymind-google-interactive-wrap">
-                  {/* Nút giao diện trực quan chuẩn thiết kế */}
-                  <button
-                    type="button"
-                    className="studymind-btn-google"
-                    tabIndex={-1}
-                  >
-                    <GoogleLogo size={20} />
-                    <span>Tiếp tục với Google</span>
-                  </button>
-                  {/* Lớp bắt sự kiện GIS của Google nằm phủ lên trên */}
+                <div className="studymind-google-wrapper">
                   <div
                     ref={googleBtnRef}
-                    className="studymind-google-gis-layer"
+                    className="studymind-google-btn-rendered"
                     title="Đăng nhập với Google"
                   />
                 </div>
@@ -694,7 +693,11 @@ function LoginPage() {
                 <button
                   type="button"
                   className="studymind-btn-google"
-                  disabled
+                  onClick={() => {
+                    setError(
+                      "Chưa cấu hình Google Client ID (VITE_GOOGLE_CLIENT_ID). Bạn có thể bấm 'Sinh viên Demo' bên dưới để đăng nhập ngay."
+                    );
+                  }}
                   title="Chưa cấu hình Google Client ID"
                 >
                   <GoogleLogo size={20} />

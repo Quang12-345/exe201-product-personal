@@ -308,18 +308,30 @@ async def record_token_usage(
 
 
 def _signature(params: dict[str, str], secret: str) -> str:
-    signed = urlencode(sorted(params.items()))
-    return hmac.new(secret.encode(), signed.encode(), hashlib.sha512).hexdigest()
+    cleaned = {
+        key: str(value).strip()
+        for key, value in params.items()
+        if value is not None and str(value).strip() != ""
+    }
+    signed = urlencode(sorted(cleaned.items()))
+    return hmac.new(secret.strip().encode("utf-8"), signed.encode("utf-8"), hashlib.sha512).hexdigest()
 
 
 def verify_vnpay_signature(params: dict[str, str], secret: str) -> bool:
     supplied = params.get("vnp_SecureHash", "")
+    secret_clean = (secret or "").strip()
+    if not supplied or not secret_clean:
+        return False
     signed_params = {
-        key: value
+        key: str(value).strip()
         for key, value in params.items()
-        if key.startswith("vnp_") and key not in {"vnp_SecureHash", "vnp_SecureHashType"}
+        if key.startswith("vnp_")
+        and key not in {"vnp_SecureHash", "vnp_SecureHashType"}
+        and value is not None
+        and str(value).strip() != ""
     }
-    return bool(supplied) and hmac.compare_digest(_signature(signed_params, secret), supplied.lower())
+    expected = _signature(signed_params, secret_clean)
+    return hmac.compare_digest(expected.lower(), supplied.strip().lower())
 
 
 def _querydr_signature(fields: tuple[str, ...], values: dict[str, str], secret: str) -> str:
@@ -373,7 +385,9 @@ async def create_vnpay_checkout(
     return_to: str | None = None,
 ) -> dict[str, str | int]:
     settings = get_settings()
-    if not settings.vnpay_tmn_code or not settings.vnpay_hash_secret:
+    tmn_code = (settings.vnpay_tmn_code or "").strip()
+    hash_secret = (settings.vnpay_hash_secret or "").strip()
+    if not tmn_code or not hash_secret:
         raise HTTPException(status_code=503, detail="Thanh toán VNPay chưa được cấu hình.")
 
     order_code = time.time_ns() // 1_000
@@ -390,23 +404,31 @@ async def create_vnpay_checkout(
     session.add(transaction)
     await session.flush()
 
+    # Chuẩn hóa IP sang IPv4 hợp lệ
+    clean_ip = ip_address.strip() if ip_address else "127.0.0.1"
+    if ":" in clean_ip or not clean_ip:
+        clean_ip = "127.0.0.1"
+
+    return_url = (settings.vnpay_return_url or "http://localhost:8000/api/v1/payments/vnpay/return").strip()
+    payment_url = (settings.vnpay_payment_url or "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html").strip()
+
     params = {
         "vnp_Version": "2.1.0",
         "vnp_Command": "pay",
-        "vnp_TmnCode": settings.vnpay_tmn_code,
+        "vnp_TmnCode": tmn_code,
         "vnp_Amount": str(PRO_PRICE_VND * 100),
         "vnp_CurrCode": "VND",
         "vnp_TxnRef": str(order_code),
         "vnp_OrderInfo": f"Pro monthly {order_code}",
         "vnp_OrderType": "other",
         "vnp_Locale": "vn",
-        "vnp_ReturnUrl": settings.vnpay_return_url,
-        "vnp_IpAddr": ip_address[:45] or "127.0.0.1",
+        "vnp_ReturnUrl": return_url,
+        "vnp_IpAddr": clean_ip[:45],
         "vnp_CreateDate": now.strftime("%Y%m%d%H%M%S"),
         "vnp_ExpireDate": expires.strftime("%Y%m%d%H%M%S"),
     }
-    params["vnp_SecureHash"] = _signature(params, settings.vnpay_hash_secret)
-    checkout_url = f"{settings.vnpay_payment_url}?{urlencode(sorted(params.items()))}"
+    params["vnp_SecureHash"] = _signature(params, hash_secret)
+    checkout_url = f"{payment_url}?{urlencode(sorted(params.items()))}"
     transaction.checkout_url = checkout_url
     await session.commit()
     return {
@@ -540,9 +562,11 @@ async def query_vnpay_and_reconcile(
 
 async def process_vnpay_ipn(session: AsyncSession, params: dict[str, str]) -> dict[str, str]:
     settings = get_settings()
-    if not settings.vnpay_hash_secret or not verify_vnpay_signature(params, settings.vnpay_hash_secret):
+    tmn_code = (settings.vnpay_tmn_code or "").strip()
+    hash_secret = (settings.vnpay_hash_secret or "").strip()
+    if not hash_secret or not verify_vnpay_signature(params, hash_secret):
         return {"RspCode": "97", "Message": "Invalid signature"}
-    if params.get("vnp_TmnCode") != settings.vnpay_tmn_code:
+    if params.get("vnp_TmnCode", "").strip() != tmn_code:
         return {"RspCode": "97", "Message": "Invalid merchant"}
 
     try:

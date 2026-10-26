@@ -136,6 +136,12 @@ async def _provision_student_from_google(
     full_name: str | None,
 ) -> User:
     student_role = await user_repo.get_role_by_name(session, "student")
+    if student_role is None and session is not None and hasattr(session, "execute"):
+        from src.db.roles import sync_roles
+
+        await sync_roles(session)
+        student_role = await user_repo.get_role_by_name(session, "student")
+
     display_name = (str(full_name or "").strip() or email.split("@", 1)[0]).strip()
     username = await _unique_username(session, email)
     user = User(
@@ -165,22 +171,24 @@ async def _provision_student_from_google(
 
 def _verify_google_id_token(credential: str) -> dict:
     settings = get_settings()
-    if not settings.google_client_id:
+    client_id = (settings.google_client_id or "").strip()
+    if not client_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GOOGLE_CLIENT_ID is not configured",
+            detail="GOOGLE_CLIENT_ID chưa được cấu hình trên máy chủ.",
         )
 
     try:
         return id_token.verify_oauth2_token(
             credential,
             requests.Request(),
-            settings.google_client_id,
+            client_id,
+            clock_skew_in_seconds=10,
         )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google token không hợp lệ",
+            detail="Google token không hợp lệ hoặc đã hết hạn",
         ) from exc
 
 
@@ -247,6 +255,26 @@ async def gmail_login_controller(
             detail="Tài khoản đã bị vô hiệu hóa",
         )
 
+    # Đảm bảo user có role_id và role được gán đầy đủ trong DB
+    if (
+        getattr(user, "role", None) is None
+        and getattr(user, "role_id", None) is None
+        and session is not None
+        and hasattr(session, "execute")
+    ):
+        student_role = await user_repo.get_role_by_name(session, "student")
+        if student_role is None:
+            from src.db.roles import sync_roles
+
+            await sync_roles(session)
+            student_role = await user_repo.get_role_by_name(session, "student")
+        if student_role:
+            user.role_id = student_role.id
+            if hasattr(session, "commit"):
+                await session.commit()
+            if hasattr(user_repo, "reload_with_role"):
+                user = await user_repo.reload_with_role(session, user.id)
+
     role_name = _role_name(user, default="student")
     name = _display_name(user)
     token = create_access_token(
@@ -262,6 +290,7 @@ async def gmail_login_controller(
 
     return GmailLoginResponse(
         access_token=token,
+        token=token,
         user=_build_login_user(user, role_name),
     )
 
