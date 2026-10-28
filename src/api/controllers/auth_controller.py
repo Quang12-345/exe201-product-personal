@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -36,6 +37,7 @@ OTP_EXPIRE_MINUTES = 5
 MAX_OTP_ATTEMPTS = 5
 GMAIL_DOMAINS = {"gmail.com", "googlemail.com"}
 UNVERIFIED_STATUS = "unverified"
+logger = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -172,24 +174,33 @@ async def _provision_student_from_google(
 def _verify_google_id_token(credential: str) -> dict:
     settings = get_settings()
     client_id = (settings.google_client_id or "").strip()
-    if not client_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GOOGLE_CLIENT_ID chưa được cấu hình trên máy chủ.",
-        )
 
     try:
-        return id_token.verify_oauth2_token(
+        payload = id_token.verify_oauth2_token(
             credential,
             requests.Request(),
-            client_id,
-            clock_skew_in_seconds=10,
+            clock_skew_in_seconds=120,
         )
     except ValueError as exc:
+        logger.warning("Google token verification failed: %s | client_id=%s", exc, client_id)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google token không hợp lệ hoặc đã hết hạn",
+            detail=f"Google token không hợp lệ ({exc})",
         ) from exc
+
+    token_aud = str(payload.get("aud") or "").strip()
+    if client_id and token_aud != client_id:
+        logger.warning(
+            "Google Client ID mismatch! Token aud: '%s', Server client_id: '%s'",
+            token_aud,
+            client_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Client ID không khớp! Token từ Google là '{token_aud}', nhưng Backend cấu hình '{client_id}'.",
+        )
+
+    return payload
 
 
 async def login_controller(request: LoginRequest, session: AsyncSession) -> LoginResponse:
@@ -237,9 +248,10 @@ async def gmail_login_controller(
     _picture = google_user.get("picture")
 
     if not email:
+        logger.warning("Google token không chứa email: %s", google_user)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google token không hợp lệ",
+            detail="Google token không chứa địa chỉ email. Vui lòng cấp quyền email trên Google Cloud.",
         )
 
     user = await user_repo.get_by_email(session, email)

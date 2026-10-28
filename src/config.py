@@ -3,7 +3,7 @@ from functools import lru_cache
 from typing import Literal
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 load_dotenv()
@@ -232,7 +232,10 @@ class Settings(BaseSettings):
         default="dev-secret-change-me",
         validation_alias="JWT_SECRET_KEY",
     )
-    google_client_id: str = Field(default="", validation_alias="GOOGLE_CLIENT_ID")
+    google_client_id: str = Field(
+        default="",
+        validation_alias=AliasChoices("GOOGLE_CLIENT_ID", "VITE_GOOGLE_CLIENT_ID"),
+    )
 
     # Email
     email_host: str = Field(default="smtp.gmail.com", validation_alias="EMAIL_HOST")

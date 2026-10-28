@@ -8,18 +8,19 @@ import { ALLOWED_ADMIN_SUFFIXES, checkAdminSuffix } from "../utils/adminAuth.js"
 import "./LoginPage.css";
 
 // Biểu tượng Logo StudyMind (Tia sét với tia sao phát sáng)
-function StudyMindLogo({ size = 26 }) {
+function StudyMindLogo({ size = 32 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <svg width={size} height={size} viewBox="0 0 512 512" fill="none">
       <path
-        d="M13 2.5L5.5 13H11.5L9.5 22L18.5 10.5H12.5L14.5 2.5H13Z"
+        d="M 153.52 51.44 H 356.87 V 75.55 A 186.18 186.18 0 0 0 177.63 255.60 H 153.52 Z"
         fill="#FFFFFF"
-        stroke="#FFFFFF"
-        strokeWidth="0.8"
-        strokeLinejoin="round"
       />
       <path
-        d="M19.2 4L19.8 5.8L21.6 6.4L19.8 7L19.2 8.8L18.6 7L16.8 6.4L18.6 5.8L19.2 4Z"
+        d="M 356.87 460.56 H 153.52 V 436.45 A 186.18 186.18 0 0 0 332.76 256.40 H 356.87 Z"
+        fill="#FFFFFF"
+      />
+      <path
+        d="M 290.96 166.38 L 307.84 166.38 L 289.36 204.16 C 293.05 205.60, 271.59 233.66, 317.49 243.54 L 310.25 258.01 C 253.03 270.63, 258.01 284.77, 243.54 298.20 L 224.25 335.17 L 207.37 335.17 L 225.86 297.39 C 222.16 295.95, 243.62 267.90, 197.73 258.01 L 204.96 243.54 C 262.19 230.92, 257.21 216.78, 271.67 203.35 Z"
         fill="#FFFFFF"
       />
     </svg>
@@ -318,6 +319,7 @@ function LoginPage() {
       if (cancelled || !window.google?.accounts?.id || !googleBtnRef.current)
         return false;
 
+      console.log('[Google Auth] Đang khởi tạo Google Login với Client ID:', GOOGLE_CLIENT_ID);
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (resp) => {

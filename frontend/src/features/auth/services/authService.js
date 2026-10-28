@@ -63,8 +63,31 @@ export async function login({ username, password }) {
 export async function gmailLogin(credential) {
   let data
   try {
+    try {
+      const parts = credential.split('.')
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+        console.log('[Google Auth] Token Payload:', {
+          email: payload.email,
+          aud: payload.aud,
+          iss: payload.iss,
+          name: payload.name,
+        })
+      }
+    } catch {
+      // ignore parse error
+    }
+
     ;({ data } = await api.post(ENDPOINTS.gmailLogin, { credential }, { timeout: 60000 }))
   } catch (error) {
+    const detail = error?.response?.data?.detail
+    const targetUrl = ENDPOINTS.gmailLogin
+    console.error('[Google Auth] Chi tiết lỗi từ Backend:', {
+      targetUrl,
+      status: error?.response?.status,
+      detail,
+      rawError: error,
+    })
     throw new Error(messageFromError(error, 'Đăng nhập bằng Google thất bại'))
   }
   // Backend trả { access_token, user } (chấp nhận cả token cho chắc).
