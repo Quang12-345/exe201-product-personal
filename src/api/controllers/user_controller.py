@@ -226,43 +226,25 @@ async def create_user_controller(request: CreateUserRequest, session: AsyncSessi
     )
     await user_repo.add(session, user)
 
+    # Tạm thời vô hiệu hóa bắt buộc gửi email để admin tạo tài khoản giảng viên không bị chặn lỗi email cấu hình
     try:
         await send_account_created_email(email, username, initial_password)
+    except Exception as exc:
+        logger.warning(
+            "Tạm thời bỏ qua lỗi gửi email tài khoản (%s) — tài khoản %s vẫn được tạo thành công với mật khẩu: %s",
+            exc,
+            username,
+            initial_password,
+        )
+
+    try:
         await session.commit()
-    except (EmailConfigError, EmailDeliveryError) as exc:
-        settings = get_settings()
-        if settings.app_env != "production":
-            logger.warning(
-                "DEV MODE: Không thể gửi email tài khoản (%s) — tài khoản %s vẫn được tạo thành công với mật khẩu ban đầu: %s",
-                exc,
-                username,
-                initial_password,
-            )
-            await session.commit()
-        else:
-            await session.rollback()
-            if isinstance(exc, EmailConfigError):
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Email service is misconfigured",
-                ) from exc
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Could not send account email",
-            ) from exc
-    except EmailRecipientError as exc:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Recipient email address is invalid or refused",
-        ) from exc
     except IntegrityError as exc:
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already exists",
         ) from exc
-
     created_user = await user_repo.reload_with_role(session, user.id)
     response = await build_user_response(session, created_user, include_document_count=True)
     response.initialPassword = initial_password
