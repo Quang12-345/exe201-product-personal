@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import get_settings
 from src.core.security import hash_password, verify_password
 from src.db.models import Subscription, User
 from src.db.roles import is_assignable_role, normalize_role_name, role_display_name
@@ -21,9 +20,6 @@ from src.models.user import (
 )
 from src.repositories import user_repo
 from src.services.email_service import (
-    EmailConfigError,
-    EmailDeliveryError,
-    EmailRecipientError,
     send_account_created_email,
 )
 
