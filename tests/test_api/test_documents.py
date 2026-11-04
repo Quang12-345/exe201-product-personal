@@ -268,6 +268,49 @@ async def test_view_document_text_for_link_falls_back_when_url_content_empty(mon
 
 
 @pytest.mark.asyncio
+async def test_view_document_text_falls_back_to_chunks_when_local_file_missing(monkeypatch):
+    """Khi file gốc (.pptx, .pdf, ...) bị mất trên disk/R2, tự động đọc từ document_chunks."""
+    doc = _doc(
+        id="pptx-1",
+        title="Module2_Dart_Essentials",
+        file_name="Module2_Dart_Essentials.pptx",
+        file_type="pptx",
+        storage_path="datasets/uploads/user-1/missing.pptx",
+        metadata_json={"scope": "school", "category": "syllabus"},
+    )
+    chunks = [
+        SimpleNamespace(chunk_index=0, content="## Slide 1\nModule 2 - Dart Essentials"),
+        SimpleNamespace(chunk_index=1, content="## Slide 2\nContents Structure Variables"),
+    ]
+
+    async def fake_get(session, document_id):
+        return doc
+
+    async def fake_chunks(session, document_id):
+        return chunks
+
+    async def fake_mark_viewed(session, document_id, user_id):
+        return None
+
+    class FakeSession:
+        async def commit(self):
+            return None
+
+    monkeypatch.setattr(document_controller.document_repo, "get_document", fake_get)
+    monkeypatch.setattr(document_controller.document_repo, "list_chunks_by_document", fake_chunks)
+    monkeypatch.setattr(document_controller.document_repo, "mark_document_viewed", fake_mark_viewed)
+
+    user = SimpleNamespace(id="student-1", role=SimpleNamespace(name="student"))
+    result = await document_controller.view_document_text_controller(FakeSession(), user, "pptx-1")
+
+    assert result["file_type"] == "pptx"
+    assert result["file_name"] == "Module2_Dart_Essentials.pptx"
+    assert "## Slide 1" in result["text"]
+    assert "## Slide 2" in result["text"]
+    assert "Module 2 - Dart Essentials" in result["text"]
+
+
+@pytest.mark.asyncio
 async def test_available_documents_include_regulation_for_student(monkeypatch):
     """Thư viện sinh viên thấy tài liệu nhà trường đã sẵn sàng, gồm cả quy chế."""
     docs = [

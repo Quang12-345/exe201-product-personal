@@ -138,14 +138,27 @@ function DocumentViewerModal({ doc, onClose }) {
     const load = async () => {
       try {
         if (needsBlob) {
-          const url = await fetchDocBlobUrl(doc.id)
-          if (cancelled) { URL.revokeObjectURL(url); return }
-          revoke = url
-          setBlobUrl(url)
+          try {
+            const url = await fetchDocBlobUrl(doc.id)
+            if (cancelled) { URL.revokeObjectURL(url); return }
+            revoke = url
+            setBlobUrl(url)
+          } catch {
+            const data = await fetchDocText(doc.id)
+            if (cancelled) return
+            setText(data?.text || '(Tài liệu không có nội dung văn bản để hiển thị.)')
+          }
         } else if (isDocx) {
-          const blob = await fetchDocBlob(doc.id)
-          if (cancelled) return
-          setDocBlob(blob)
+          try {
+            const blob = await fetchDocBlob(doc.id)
+            if (cancelled) return
+            setDocBlob(blob)
+          } catch {
+            setDocxFallback(true)
+            const data = await fetchDocText(doc.id)
+            if (cancelled) return
+            setText(data?.text || '(Tài liệu không có nội dung văn bản để hiển thị.)')
+          }
         } else {
           const data = await fetchDocText(doc.id)
           if (cancelled) return
@@ -233,7 +246,18 @@ function DocumentViewerModal({ doc, onClose }) {
       a.download = doc.name || 'tai-lieu'
       a.click()
     } catch {
-      notify('Không tải được tài liệu.', 'error')
+      if (text) {
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+        const textUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = textUrl
+        a.download = `${doc.name || 'tai-lieu'}.txt`
+        a.click()
+        URL.revokeObjectURL(textUrl)
+        notify('Không tìm thấy tệp gốc, đã tải về bản trích xuất văn bản (.txt).', 'info')
+      } else {
+        notify('Không tải được tài liệu.', 'error')
+      }
     }
   }
 
@@ -312,6 +336,9 @@ function DocumentViewerModal({ doc, onClose }) {
                   src={doc?.page ? `${blobUrl}#page=${doc.page}` : blobUrl}
                   title={doc?.name}
                 />
+              )}
+              {!loading && !error && isInline && !blobUrl && text && (
+                <TextWithHighlight text={text} quote={doc?.quote} />
               )}
               {!loading && !error && isDocx && (
                 docxFallback ? (

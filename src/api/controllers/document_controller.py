@@ -818,7 +818,8 @@ async def mark_document_viewed_controller(session: AsyncSession, user: User, doc
 async def _ensure_local_file(document) -> Path:
     """Trả về đường dẫn file gốc; nếu bản local đã mất (deploy mới, container ephemeral)
     thì tự tải lại từ R2 bằng r2_key đã lưu — nhờ vậy tài liệu cũ vẫn xem được."""
-    path = Path(document.storage_path)
+    raw_path = str(document.storage_path or "").replace("\\", "/")
+    path = Path(*raw_path.split("/")) if raw_path else Path(document.storage_path)
     if path.is_file():
         return path
     r2_key = (document.metadata_json or {}).get("r2_key")
@@ -909,26 +910,50 @@ async def view_document_text_controller(session: AsyncSession, user: User, docum
         await session.commit()
         return await _extract_link_document_text(session, document)
 
-    path = await _ensure_local_file(document)
     await document_repo.mark_document_viewed(session, document_id=document.id, user_id=user.id)
     await session.commit()
-    ext = path.suffix.lower()
-    from src.services.data_pipeline import (
-        _extract_docx_text,
-        _extract_pdf_text,
-        _extract_pptx_text,
-    )
+
+    # 1. Thử đọc từ file vật lý nếu file còn trên server hoặc tải được từ R2
+    text = ""
+    ext = Path(document.storage_path or "").suffix.lower()
     try:
+        path = await _ensure_local_file(document)
+        ext = path.suffix.lower()
+        from src.services.data_pipeline import (
+            PLAIN_TEXT_EXTENSIONS,
+            _extract_docx_text,
+            _extract_pdf_text,
+            _extract_pptx_text,
+            _extract_txt_text,
+        )
         if ext == ".pdf":
             text = _extract_pdf_text(path)
         elif ext == ".docx":
             text = _extract_docx_text(path)
         elif ext == ".pptx":
             text = _extract_pptx_text(path)
-        else:
-            text = ""
-    except Exception as exc:  # noqa: BLE001
+        elif ext in PLAIN_TEXT_EXTENSIONS:
+            text = _extract_txt_text(path)
+    except Exception:
+        # File gốc không khả dụng trên server/R2 (ví dụ deploy container ephemeral)
+        text = ""
+
+    # 2. FALLBACK: Nếu không có file gốc hoặc lỗi khi đọc file, lấy toàn bộ chunks từ database
+    if not text.strip():
+        chunks = await document_repo.list_chunks_by_document(session, document.id)
+        chunk_text = "\n\n".join(
+            (chunk.content or "").strip()
+            for chunk in chunks
+            if (chunk.content or "").strip()
+        )
+        if chunk_text:
+            text = chunk_text
+
+    if not text.strip():
         raise HTTPException(
-            status_code=500, detail=f"Không đọc được nội dung tài liệu: {exc}"
-        ) from exc
-    return {"file_type": ext.lstrip("."), "file_name": document.file_name, "text": text}
+            status_code=404,
+            detail="Không tìm thấy bản gốc tài liệu (cả trên máy chủ lẫn object store) và không có nội dung trích xuất.",
+        )
+
+    file_type = ext.lstrip(".") or str(document.file_type or "file").lower()
+    return {"file_type": file_type, "file_name": document.file_name, "text": text}
