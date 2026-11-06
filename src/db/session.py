@@ -131,6 +131,12 @@ async def _ensure_schema_upgrades(conn) -> None:
             text("SELECT column_name FROM information_schema.columns WHERE table_name = 'students'")
         )
     }
+    exam_cols = {
+        r[0]
+        for r in await conn.execute(
+            text("SELECT column_name FROM information_schema.columns WHERE table_name = 'exams'")
+        )
+    }
     needs_tokens_used = bool(usage_cols) and "tokens_used" not in usage_cols
     needs_event_tokens = bool(event_cols) and "tokens" not in event_cols
     needs_fc_user_id = bool(fc_cols) and "user_id" not in fc_cols
@@ -138,6 +144,8 @@ async def _ensure_schema_upgrades(conn) -> None:
     needs_classrooms_table = "classrooms" not in table_names
     needs_doc_classroom_id = bool(doc_cols) and "classroom_id" not in doc_cols
     needs_student_classroom_id = bool(student_cols) and "classroom_id" not in student_cols
+    needs_exam_document_id = bool(exam_cols) and "document_id" not in exam_cols
+    needs_exam_quiz_id = bool(exam_cols) and "quiz_id" not in exam_cols
 
     if (
         not needs_username
@@ -150,6 +158,8 @@ async def _ensure_schema_upgrades(conn) -> None:
         and not needs_classrooms_table
         and not needs_doc_classroom_id
         and not needs_student_classroom_id
+        and not needs_exam_document_id
+        and not needs_exam_quiz_id
     ):
         return  # đã ở trạng thái mục tiêu → không chạy DDL
 
@@ -191,6 +201,20 @@ async def _ensure_schema_upgrades(conn) -> None:
         except Exception:
             pass
 
+    if needs_exam_document_id:
+        await conn.execute(text("ALTER TABLE exams ADD COLUMN IF NOT EXISTS document_id VARCHAR(36) REFERENCES documents(id) ON DELETE SET NULL"))
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_exams_document_id ON exams (document_id)"))
+        except Exception:
+            pass
+
+    if needs_exam_quiz_id:
+        await conn.execute(text("ALTER TABLE exams ADD COLUMN IF NOT EXISTS quiz_id VARCHAR(36) REFERENCES quizzes(id) ON DELETE SET NULL"))
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_exams_quiz_id ON exams (quiz_id)"))
+        except Exception:
+            pass
+
     if needs_fc_user_id:
         await conn.execute(text("ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE"))
         try:
@@ -204,6 +228,15 @@ async def _ensure_schema_upgrades(conn) -> None:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_quizzes_user_id ON quizzes (user_id)"))
         except Exception:
             pass
+    try:
+        await conn.execute(text("ALTER TABLE quizzes ALTER COLUMN document_id DROP NOT NULL"))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text("ALTER TABLE exams ADD COLUMN IF NOT EXISTS classroom_id VARCHAR(36) REFERENCES classrooms(id) ON DELETE SET NULL"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_exams_classroom_id ON exams (classroom_id)"))
+    except Exception:
+        pass
 
     if needs_tokens_used:
         await conn.execute(text("ALTER TABLE daily_chat_usage ADD COLUMN IF NOT EXISTS tokens_used INTEGER DEFAULT 0"))

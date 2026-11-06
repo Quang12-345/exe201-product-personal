@@ -10,6 +10,7 @@ import StudentClassesPage from './pages/StudentClassesPage.jsx'
 import StudentClassroomDetailPage from './pages/StudentClassroomDetailPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import StudyPage from './pages/StudyPage.jsx'
+import StudentExamsPage from './pages/StudentExamsPage.jsx'
 
 // Khu sinh viên — nằm sau ProtectedRoute (role student) + StudentLayout.
 function StudentRoutes() {
@@ -20,6 +21,7 @@ function StudentRoutes() {
           <Route index element={<StudentDashboardPage />} />
           <Route path="classes" element={<StudentClassesPage />} />
           <Route path="classes/:id" element={<StudentClassroomDetailPage />} />
+          <Route path="exams" element={<StudentExamsPage />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="chat/saved" element={<SavedAnswersPage />} />
           <Route path="library" element={<LibraryPage />} />

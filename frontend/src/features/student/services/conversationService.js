@@ -12,7 +12,7 @@ function greeting() {
       id: 'g' + Date.now(),
       from: 'ai',
       time: 'Bây giờ',
-      text: 'Xin chào! Tôi là trợ lý AI của hệ thống DMRS. Bạn cần hỗ trợ gì hôm nay?',
+      text: 'Xin chào! Tôi là trợ lý AI của hệ thống StudyMind. Bạn cần hỗ trợ gì hôm nay?',
       canSave: true,
     },
   ]

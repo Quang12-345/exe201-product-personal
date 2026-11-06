@@ -206,9 +206,9 @@ export default function QuizPlayer({
     return (
       <div className="study-pro-locked-box">
         <div className="study-pro-locked-icon">🔒</div>
-        <h3 className="study-pro-locked-title">Luyện thi Quiz chỉ dành cho DMRS Pro</h3>
+        <h3 className="study-pro-locked-title">Luyện thi Quiz chỉ dành cho gói Pro</h3>
         <p className="study-pro-locked-desc">
-          Tài khoản của bạn hiện là gói Miễn phí. Đề thi trắc nghiệm AI và toàn bộ bài luyện tập ôn thi chỉ có thể sử dụng khi nâng cấp gói <strong>DMRS Pro</strong>.
+          Tài khoản của bạn hiện là gói Miễn phí. Đề thi trắc nghiệm AI và toàn bộ bài luyện tập ôn thi chỉ có thể sử dụng khi nâng cấp <strong>gói Pro</strong>.
         </p>
         <button
           type="button"
@@ -216,7 +216,7 @@ export default function QuizPlayer({
           onClick={onUpgradePro}
           disabled={checkoutBusy}
         >
-          {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp DMRS Pro để mở khóa · 99.000đ/tháng'}
+          {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 99.000đ/tháng'}
         </button>
       </div>
     )

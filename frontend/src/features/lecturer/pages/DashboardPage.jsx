@@ -10,6 +10,7 @@ import {
   HelpIcon,
   GraduationCapIcon,
   ArrowRightIcon,
+  CalendarIcon,
 } from '../../../components/common/icons.jsx'
 import { Link } from 'react-router-dom'
 import { getStatsOverview } from '../../../services/statsApi'
@@ -247,17 +248,23 @@ function LecturerDashboard() {
           </div>
         </div>
 
-        {/* Card 3: Bài kiểm tra tuần này */}
-        <div className="lec-stat-card lec-stat-card--purple">
+        {/* Card 3: Lịch thi / kiểm tra */}
+        <div
+          className="lec-stat-card lec-stat-card--purple"
+          onClick={() => navigate('/lecturer/exams')}
+          style={{ cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+        >
           <div className="lec-stat-top">
-            <span className="lec-stat-label">BÀI KIỂM TRA TUẦN NÀY</span>
+            <span className="lec-stat-label">LỊCH THI / KIỂM TRA</span>
             <span className="lec-stat-icon-box" style={{ backgroundColor: '#f5f3ff', color: '#7c3aed' }}>
-              <HelpIcon size={18} />
+              <CalendarIcon size={18} />
             </span>
           </div>
           <div className="lec-stat-val">{examsCount}</div>
           <div className="lec-stat-sub">
-            <span className="lec-stat-badge lec-stat-badge--neutral">2 đã xuất bản</span>
+            <span className="lec-stat-badge lec-stat-badge--neutral">Quản lý lịch thi →</span>
           </div>
         </div>
 

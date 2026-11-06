@@ -32,34 +32,40 @@ async def retrieve_context_node(state: AgentState) -> dict:
     # Lọc theo quyền: student chỉ tài liệu nhà trường; lecturer thêm tài liệu của mình.
     access_filter = build_access_filter(state.get("user_role"), state.get("user_id"))
 
+    db_chunks = []
+    score_by_chunk_id = {}
+    payload_by_chunk_id = {}
     try:
         query_vector = state.get("query_embedding", [])
-        # Truy hồi 2 tầng: ưu tiên ngưỡng cao (chắc chắn liên quan); nếu RỖNG mới
-        # hạ xuống ngưỡng dự phòng. Nhờ vậy tài liệu đã lập chỉ mục luôn trả lời
-        # được dù điểm cosine chỉ ở mức vừa phải (tiếng Việt/đoạn ngắn) — đồng thời
-        # vẫn loại nhiễu thật sự (dưới fallback) để không bịa khi hỏi ngoài phạm vi.
-        results = await search_similar(
-            query_vector=query_vector,
-            top_k=candidate_limit,
-            score_threshold=settings.rag_min_score,
-            query_filter=access_filter,
-        )
-        if not results and settings.rag_fallback_min_score < settings.rag_min_score:
+        if query_vector:
+            # Truy hồi 2 tầng: ưu tiên ngưỡng cao (chắc chắn liên quan); nếu RỖNG mới
+            # hạ xuống ngưỡng dự phòng. Nhờ vậy tài liệu đã lập chỉ mục luôn trả lời
+            # được dù điểm cosine chỉ ở mức vừa phải (tiếng Việt/đoạn ngắn) — đồng thời
+            # vẫn loại nhiễu thật sự (dưới fallback) để không bịa khi hỏi ngoài phạm vi.
             results = await search_similar(
                 query_vector=query_vector,
                 top_k=candidate_limit,
-                score_threshold=settings.rag_fallback_min_score,
+                score_threshold=settings.rag_min_score,
                 query_filter=access_filter,
             )
-        candidate_ids = [r.chunk_id for r in results if r.chunk_id]
-        score_by_chunk_id = {r.chunk_id: r.score for r in results}
-        payload_by_chunk_id = {r.chunk_id: r.payload for r in results}
+            if not results and settings.rag_fallback_min_score < settings.rag_min_score:
+                results = await search_similar(
+                    query_vector=query_vector,
+                    top_k=candidate_limit,
+                    score_threshold=settings.rag_fallback_min_score,
+                    query_filter=access_filter,
+                )
+            candidate_ids = [r.chunk_id for r in results if r.chunk_id]
+            score_by_chunk_id = {r.chunk_id: r.score for r in results}
+            payload_by_chunk_id = {r.chunk_id: r.payload for r in results}
 
-        async with AsyncSessionLocal() as session:
-            db_chunks = await get_chunks_by_ids(session, candidate_ids)
+            async with AsyncSessionLocal() as session:
+                db_chunks = await get_chunks_by_ids(session, candidate_ids)
     except Exception as exc:
-        # Soft-fail: let the graph reach persistence so the run is finalized.
-        return {"error": f"Vector search error: {exc}"}
+        query_lower = (state.get("query") or "").lower()
+        if not any(k in query_lower for k in ("lịch thi", "lich thi", "khi nào thi", "phòng thi", "exam")):
+            # Soft-fail: let the graph reach persistence so the run is finalized.
+            return {"error": f"Vector search error: {exc}"}
 
     # Loại chunk TRÙNG NỘI DUNG (tài liệu nạp 2 lần / đoạn lặp) — giữ bản điểm cao
     # nhất, để top_k không bị bản sao chiếm chỗ của thông tin khác.
@@ -174,7 +180,68 @@ async def retrieve_context_node(state: AgentState) -> dict:
             }
         )
 
-    context = "\n\n".join(chunk["content"] for chunk in retrieved_chunks)
+    exam_context = ""
+    query_lower = (state.get("query") or "").lower()
+    exam_keywords = [
+        "lịch thi", "lich thi", "khi nào thi", "khi nao thi",
+        "phòng thi", "phong thi", "ngày thi", "ngay thi",
+        "hạn thi", "giờ thi", "ca thi", "exam", "kiểm tra", "kiem tra",
+        "đề thi", "de thi", "bài thi", "bai thi", "file đề", "file de"
+    ]
+    if any(k in query_lower for k in exam_keywords):
+        try:
+            from src.repositories import classroom_repo, exam_repo
+            async with AsyncSessionLocal() as session:
+                subjects = None
+                user_role = state.get("user_role")
+                user_id = state.get("user_id")
+                if user_role == "student" and user_id:
+                    classrooms = await classroom_repo.list_student_enrolled_classrooms(session, user_id)
+                    subjects = [c.subject for c in classrooms if c.subject]
+                exams = await exam_repo.list_exams(session, subjects=subjects)
+                if not exams and subjects is not None:
+                    exams = await exam_repo.list_exams(session)
+                if exams:
+                    exam_lines = []
+                    for e in exams[:8]:
+                        dt_str = e.exam_date.strftime("%d/%m/%Y lúc %H:%M") if e.exam_date else "Chưa xếp ngày"
+                        dur_str = f" | Thời lượng: {e.duration_minutes} phút" if e.duration_minutes else ""
+                        quiz_str = ""
+                        if getattr(e, "quiz_id", None):
+                            quiz_name = (e.quiz.title if getattr(e, "quiz", None) else "") or "Bài thi trắc nghiệm"
+                            q_cnt = len(getattr(e.quiz, "questions", [])) if getattr(e, "quiz", None) else 0
+                            quiz_str = f" | Đề thi: Trắc nghiệm trực tuyến '{quiz_name}' ({q_cnt} câu hỏi, sinh viên làm bài và AI tự động chấm điểm)"
+                        exam_lines.append(
+                            f"- Môn {e.subject}: {e.title} | Thời gian: {dt_str}{dur_str}{quiz_str}"
+                        )
+                    exam_context = "### THÔNG TIN LỊCH THI TỪ HỆ THỐNG ĐÀO TẠO NHÀ TRƯỜNG:\n" + "\n".join(exam_lines)
+                    retrieved_chunks.insert(0, {
+                        "content": exam_context,
+                        "document_id": "exam_schedule_system",
+                        "title": "Lịch thi Nhà trường",
+                        "page_number": None,
+                        "section_title": "Lịch thi & Kiểm tra",
+                        "score": 1.0,
+                        "quote": exam_lines[0] if exam_lines else "",
+                        "url": "/student/exams" if user_role == "student" else "/lecturer/exams",
+                        "timestamp": None,
+                    })
+                    sources.insert(0, {
+                        "document_id": "exam_schedule_system",
+                        "title": "Lịch thi Nhà trường",
+                        "page_number": None,
+                        "section_title": "Lịch thi & Kiểm tra",
+                        "chunk_id": "exam_schedule_system",
+                        "score": 1.0,
+                        "quote": exam_lines[0] if exam_lines else "",
+                        "url": "/student/exams" if user_role == "student" else "/lecturer/exams",
+                        "timestamp": None,
+                    })
+        except Exception:
+            pass
+
+    chunk_contexts = [chunk["content"] for chunk in retrieved_chunks]
+    context = "\n\n".join(chunk_contexts)
     return {
         "retrieved_chunks": retrieved_chunks,
         "context": context,

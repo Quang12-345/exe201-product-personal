@@ -22,7 +22,7 @@ def get_account_credentials_template(
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thông tin tài khoản DMRS</title>
+    <title>Thông tin tài khoản StudyMind</title>
   </head>
   <body style="margin:0; padding:0; background-color:#f3f6fb; font-family:Arial, Helvetica, sans-serif; color:#1f2937;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f6fb; margin:0; padding:0;">
@@ -31,7 +31,7 @@ def get_account_credentials_template(
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background-color:#1d4ed8; padding:28px 32px; text-align:center;">
-                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">DMRS</div>
+                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">StudyMind</div>
                 <div style="font-size:13px; color:#dbeafe; margin-top:6px;">Trung tâm tri thức</div>
               </td>
             </tr>
@@ -39,7 +39,7 @@ def get_account_credentials_template(
               <td style="padding:34px 32px 12px 32px;">
                 <h1 style="margin:0 0 18px 0; font-size:24px; line-height:1.3; color:#111827; font-weight:700;">Tài khoản của bạn đã được tạo</h1>
                 <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Xin chào {e_name},</p>
-                <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Quản trị viên đã tạo cho bạn một tài khoản trên hệ thống DMRS. Dùng thông tin bên dưới để đăng nhập:</p>
+                <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Quản trị viên đã tạo cho bạn một tài khoản trên hệ thống StudyMind. Dùng thông tin bên dưới để đăng nhập:</p>
               </td>
             </tr>
             <tr>
@@ -68,7 +68,7 @@ def get_account_credentials_template(
             </tr>
             <tr>
               <td style="background-color:#f8fafc; padding:22px 32px; text-align:center; border-top:1px solid #e5e7eb;">
-                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 DMRS. Bảo lưu mọi quyền.</p>
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 StudyMind. Bảo lưu mọi quyền.</p>
               </td>
             </tr>
           </table>
@@ -88,7 +88,7 @@ def get_email_verification_template(otp: str) -> str:
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xác nhận tài khoản DMRS</title>
+    <title>Xác nhận tài khoản StudyMind</title>
   </head>
   <body style="margin:0; padding:0; background-color:#f3f6fb; font-family:Arial, Helvetica, sans-serif; color:#1f2937;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f6fb; margin:0; padding:0;">
@@ -97,7 +97,7 @@ def get_email_verification_template(otp: str) -> str:
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background-color:#1d4ed8; padding:28px 32px; text-align:center;">
-                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">DMRS</div>
+                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">StudyMind</div>
                 <div style="font-size:13px; color:#dbeafe; margin-top:6px;">Xác nhận tài khoản</div>
               </td>
             </tr>
@@ -105,7 +105,7 @@ def get_email_verification_template(otp: str) -> str:
               <td style="padding:34px 32px 12px 32px;">
                 <h1 style="margin:0 0 18px 0; font-size:24px; line-height:1.3; color:#111827; font-weight:700;">Xác nhận địa chỉ Gmail</h1>
                 <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Xin chào,</p>
-                <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Bạn vừa đăng ký tài khoản DMRS. Dùng mã OTP bên dưới để xác nhận Gmail và kích hoạt tài khoản.</p>
+                <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Bạn vừa đăng ký tài khoản StudyMind. Dùng mã OTP bên dưới để xác nhận Gmail và kích hoạt tài khoản.</p>
               </td>
             </tr>
             <tr>
@@ -135,7 +135,7 @@ def get_email_verification_template(otp: str) -> str:
             </tr>
             <tr>
               <td style="background-color:#f8fafc; padding:22px 32px; text-align:center; border-top:1px solid #e5e7eb;">
-                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 DMRS. Bảo lưu mọi quyền.</p>
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 StudyMind. Bảo lưu mọi quyền.</p>
               </td>
             </tr>
           </table>
@@ -164,7 +164,7 @@ def get_password_reset_template(otp: str) -> str:
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background-color:#1d4ed8; padding:28px 32px; text-align:center;">
-                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">DMRS</div>
+                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">StudyMind</div>
                 <div style="font-size:13px; color:#dbeafe; margin-top:6px;">Bảo mật tài khoản</div>
               </td>
             </tr>
@@ -203,7 +203,7 @@ def get_password_reset_template(otp: str) -> str:
             </tr>
             <tr>
               <td style="background-color:#f8fafc; padding:22px 32px; text-align:center; border-top:1px solid #e5e7eb;">
-                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 DMRS. Bảo lưu mọi quyền.</p>
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 StudyMind. Bảo lưu mọi quyền.</p>
               </td>
             </tr>
           </table>
@@ -224,7 +224,7 @@ def get_account_created_template(username: str, password: str) -> str:
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tài khoản DMRS của bạn</title>
+    <title>Tài khoản StudyMind của bạn</title>
   </head>
   <body style="margin:0; padding:0; background-color:#f3f6fb; font-family:Arial, Helvetica, sans-serif; color:#1f2937;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f6fb; margin:0; padding:0;">
@@ -233,7 +233,7 @@ def get_account_created_template(username: str, password: str) -> str:
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background-color:#ffffff; border-radius:14px; overflow:hidden; border:1px solid #e5e7eb;">
             <tr>
               <td style="background-color:#1d4ed8; padding:28px 32px; text-align:center;">
-                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">DMRS</div>
+                <div style="font-size:22px; font-weight:700; color:#ffffff; letter-spacing:0.5px;">StudyMind</div>
                 <div style="font-size:13px; color:#dbeafe; margin-top:6px;">Thông tin tài khoản</div>
               </td>
             </tr>
@@ -241,7 +241,7 @@ def get_account_created_template(username: str, password: str) -> str:
               <td style="padding:34px 32px 12px 32px;">
                 <h1 style="margin:0 0 18px 0; font-size:24px; line-height:1.3; color:#111827; font-weight:700;">Tài khoản của bạn đã được tạo</h1>
                 <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#374151;">Xin chào,</p>
-                <p style="margin:0 0 20px 0; font-size:15px; line-height:1.7; color:#374151;">Quản trị viên đã tạo tài khoản DMRS cho bạn. Vui lòng dùng thông tin dưới đây để đăng nhập lần đầu.</p>
+                <p style="margin:0 0 20px 0; font-size:15px; line-height:1.7; color:#374151;">Quản trị viên đã tạo tài khoản StudyMind cho bạn. Vui lòng dùng thông tin dưới đây để đăng nhập lần đầu.</p>
               </td>
             </tr>
             <tr>
@@ -263,7 +263,7 @@ def get_account_created_template(username: str, password: str) -> str:
             </tr>
             <tr>
               <td style="background-color:#f8fafc; padding:22px 32px; text-align:center; border-top:1px solid #e5e7eb;">
-                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 DMRS. Bảo lưu mọi quyền.</p>
+                <p style="margin:0; font-size:12px; line-height:1.6; color:#6b7280;">&copy; 2026 StudyMind. Bảo lưu mọi quyền.</p>
               </td>
             </tr>
           </table>

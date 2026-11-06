@@ -47,7 +47,7 @@ class QuizItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    document_id: str
+    document_id: str | None = None
     title: str
     created_at: datetime
     questions: list[QuizQuestionItem] = []
@@ -57,7 +57,7 @@ class QuizSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    document_id: str
+    document_id: str | None = None
     title: str
     created_at: datetime
     question_count: int = 0
@@ -121,3 +121,7 @@ class RecentSubmissionItem(BaseModel):
     classroom_id: str | None = None
     classroom_name: str | None = None
 
+
+class CustomQuizCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    questions: list[QuizQuestionCreate] = Field(..., min_length=1)

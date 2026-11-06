@@ -136,7 +136,7 @@ function toStudentDocument(d) {
     field: d.subject || 'Tài liệu nhà trường',
     subject: d.subject || 'Tài liệu nhà trường',
     category: d.category || 'syllabus',
-    author: d.uploaded_by_name || 'DMRS',
+    author: d.uploaded_by_name || 'StudyMind',
     date: d.created_at ? new Date(d.created_at).toLocaleDateString('vi-VN') : '',
     createdAt: d.created_at || '',
     type: (d.file_type || '').toUpperCase(),

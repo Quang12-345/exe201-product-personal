@@ -612,3 +612,226 @@ async def process_vnpay_ipn(session: AsyncSession, params: dict[str, str]) -> di
 
 def vnpay_params_from_request(request: Request) -> dict[str, str]:
     return {key: value for key, value in request.query_params.multi_items() if key.startswith("vnp_")}
+
+
+# ==============================================================================
+# PAYOS GATEWAY INTEGRATION (VIETQR CHUYỂN KHOẢN TRỰC TIẾP TÀI KHOẢN CÁ NHÂN)
+# ==============================================================================
+
+def _payos_signature(data: dict, checksum_key: str) -> str:
+    """Tạo chữ ký HMAC-SHA256 cho PayOS từ dict các trường đã sort theo alphabet."""
+    sorted_items = sorted(data.items())
+    query_str = "&".join(f"{k}={v}" for k, v in sorted_items if v is not None and str(v).strip() != "")
+    return hmac.new(
+        checksum_key.strip().encode("utf-8"),
+        query_str.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def verify_payos_webhook_signature(data_dict: dict, signature: str, checksum_key: str) -> bool:
+    """Xác thực chữ ký HMAC-SHA256 webhook gửi từ PayOS."""
+    if not signature or not checksum_key:
+        return False
+    sorted_items = sorted(data_dict.items())
+    query_str = "&".join(f"{k}={v}" for k, v in sorted_items if v is not None and str(v).strip() != "")
+    expected = hmac.new(
+        checksum_key.strip().encode("utf-8"),
+        query_str.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected.lower(), signature.strip().lower())
+
+
+async def create_payos_checkout(
+    session: AsyncSession,
+    *,
+    user,
+    return_to: str | None = None,
+) -> dict[str, str | int]:
+    """Tạo link thanh toán VietQR động qua PayOS chuyển thẳng vào STK cá nhân."""
+    settings = get_settings()
+    client_id = (settings.payos_client_id or "").strip()
+    api_key = (settings.payos_api_key or "").strip()
+    checksum_key = (settings.payos_checksum_key or "").strip()
+
+    if not client_id or not api_key or not checksum_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Cổng thanh toán PayOS chưa được cấu hình. Vui lòng kiểm tra PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY trong file .env."
+        )
+
+    # Mã đơn hàng số nguyên an toàn trong JavaScript (dưới 9007199254740991)
+    order_code = int(time.time() * 1000) % 9_000_000_000_000_000
+
+    frontend_base = (settings.frontend_url or "http://localhost:5173").strip().rstrip("/")
+    return_path = return_to if (return_to and return_to.startswith("/student/")) else "/student/chat"
+    sep = "&" if "?" in return_path else "?"
+    return_url = f"{frontend_base}{return_path}{sep}payment=success&order_code={order_code}"
+    cancel_url = f"{frontend_base}{return_path}{sep}payment=cancel&order_code={order_code}"
+
+    # PayOS description tối đa 25 ký tự không dấu/kèm mã đơn
+    description = f"Pro {order_code}"[-25:]
+
+    # PayOS yêu cầu sắp xếp đúng: amount, cancelUrl, description, orderCode, returnUrl
+    data_to_sign = {
+        "amount": PRO_PRICE_VND,
+        "cancelUrl": cancel_url,
+        "description": description,
+        "orderCode": order_code,
+        "returnUrl": return_url,
+    }
+    signature = _payos_signature(data_to_sign, checksum_key)
+
+    payload = {
+        "orderCode": order_code,
+        "amount": PRO_PRICE_VND,
+        "description": description,
+        "cancelUrl": cancel_url,
+        "returnUrl": return_url,
+        "signature": signature,
+    }
+
+    headers = {
+        "x-client-id": client_id,
+        "x-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+
+    endpoint = (settings.payos_endpoint or "https://api-merchant.payos.vn").rstrip("/") + "/v2/payment-requests"
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(endpoint, json=payload, headers=headers)
+            resp_data = resp.json()
+    except Exception as exc:
+        logger.error("PayOS API connection error: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Không thể kết nối đến cổng thanh toán PayOS: {exc}")
+
+    if resp.status_code != 200 or resp_data.get("code") != "00":
+        err_msg = resp_data.get("desc") or resp_data.get("message") or f"HTTP {resp.status_code}"
+        logger.error("PayOS create link failed: %s", resp_data)
+        raise HTTPException(status_code=400, detail=f"PayOS lỗi: {err_msg}")
+
+    data = resp_data.get("data") or {}
+    checkout_url = data.get("checkoutUrl")
+    payment_link_id = data.get("paymentLinkId")
+
+    transaction = PaymentTransaction(
+        user_id=user.id,
+        order_code=order_code,
+        amount=PRO_PRICE_VND,
+        currency="VND",
+        provider="payos",
+        status="pending",
+        payment_link_id=payment_link_id,
+        checkout_url=checkout_url,
+        raw_webhook={"return_to": return_to, "payos_data": data} if return_to else {"payos_data": data},
+    )
+    session.add(transaction)
+    await session.commit()
+
+    return {
+        "checkout_url": checkout_url,
+        "payment_url": checkout_url,
+        "order_code": order_code,
+        "amount": PRO_PRICE_VND,
+        "qr_code": data.get("qrCode"),
+    }
+
+
+async def query_payos_and_reconcile(
+    session: AsyncSession,
+    *,
+    order_code: int,
+) -> str:
+    """Truy vấn trực tiếp đơn hàng từ PayOS API để đối soát và kích hoạt Pro ngay cả khi không có Webhook."""
+    settings = get_settings()
+    client_id = (settings.payos_client_id or "").strip()
+    api_key = (settings.payos_api_key or "").strip()
+    if not client_id or not api_key:
+        return "pending"
+
+    result = await session.execute(
+        select(PaymentTransaction).where(PaymentTransaction.order_code == order_code)
+    )
+    payment = result.scalar_one_or_none()
+    if payment is None:
+        return "not_found"
+    if payment.status == "paid":
+        return "paid"
+
+    endpoint = (settings.payos_endpoint or "https://api-merchant.payos.vn").rstrip("/") + f"/v2/payment-requests/{order_code}"
+    headers = {
+        "x-client-id": client_id,
+        "x-api-key": api_key,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(endpoint, headers=headers)
+            resp_data = resp.json()
+    except Exception as exc:
+        logger.warning("PayOS querydr failed: %s", exc)
+        return "pending"
+
+    if resp.status_code != 200 or resp_data.get("code") != "00":
+        return "pending"
+
+    data = resp_data.get("data") or {}
+    status = str(data.get("status") or "").upper()
+    amount_paid = int(data.get("amountPaid") or 0)
+
+    if status == "PAID" or amount_paid >= payment.amount:
+        if payment.status != "paid":
+            await _complete_payment(
+                session,
+                payment,
+                transaction_ref=str(data.get("id") or ""),
+                verification_data={"source": "payos_query", **data},
+            )
+        return "paid"
+
+    return "pending"
+
+
+async def process_payos_webhook(session: AsyncSession, payload: dict) -> dict:
+    """Xử lý webhook tự động từ PayOS khi khách quét mã chuyển tiền thành công."""
+    settings = get_settings()
+    checksum_key = (settings.payos_checksum_key or "").strip()
+
+    data = payload.get("data")
+    signature = payload.get("signature")
+
+    # Xác nhận webhook URL khi bấm "Kiểm tra Webhook" trên trang PayOS
+    if not data or not signature:
+        return {"code": "00", "desc": "success"}
+
+    if checksum_key and not verify_payos_webhook_signature(data, signature, checksum_key):
+        logger.warning("PayOS webhook signature mismatch")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    order_code = data.get("orderCode")
+    if not order_code:
+        return {"code": "00", "desc": "success"}
+
+    result = await session.execute(
+        select(PaymentTransaction).where(PaymentTransaction.order_code == int(order_code))
+    )
+    payment = result.scalar_one_or_none()
+    if payment is None:
+        return {"code": "00", "desc": "Order not found"}
+
+    if payment.status == "paid":
+        return {"code": "00", "desc": "Order already processed"}
+
+    # Mã code thành công của PayOS
+    if str(payload.get("code")) == "00" or str(data.get("code")) == "00":
+        await _complete_payment(
+            session,
+            payment,
+            transaction_ref=str(data.get("reference") or data.get("paymentLinkId") or ""),
+            verification_data=payload,
+        )
+
+    return {"code": "00", "desc": "success"}

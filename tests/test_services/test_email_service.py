@@ -12,7 +12,7 @@ def test_password_reset_template_contains_professional_content():
     assert "Yêu cầu đặt lại mật khẩu" in html
     assert "Mã xác thực" in html
     assert "123456" in html
-    assert "&copy; 2026 DMRS. Bảo lưu mọi quyền." in html
+    assert "&copy; 2026 StudyMind. Bảo lưu mọi quyền." in html
     assert "font-family:Arial, Helvetica, sans-serif" in html
 
 
@@ -22,7 +22,7 @@ def test_email_verification_template_contains_otp():
     assert "Xác nhận địa chỉ Gmail" in html
     assert "Mã xác thực" in html
     assert "654321" in html
-    assert "&copy; 2026 DMRS. Bảo lưu mọi quyền." in html
+    assert "&copy; 2026 StudyMind. Bảo lưu mọi quyền." in html
 
 
 @pytest.mark.asyncio
@@ -43,7 +43,7 @@ async def test_send_otp_email_uses_html_alternative(monkeypatch):
             email_username="dmrs.support@gmail.com",
             email_password="secret",
             email_from="dmrs.support@gmail.com",
-            email_from_name="DMRS",
+            email_from_name="StudyMind",
             email_timeout=15.0,
             app_env="production",
         ),
@@ -53,7 +53,7 @@ async def test_send_otp_email_uses_html_alternative(monkeypatch):
     await email_service.send_otp_email("user@example.com", "123456")
 
     message = sent["message"]
-    assert message["Subject"] == "DMRS - Mã xác thực đặt lại mật khẩu"
+    assert message["Subject"] == "StudyMind - Mã xác thực đặt lại mật khẩu"
     assert message["From"] == "dmrs.support@gmail.com"
     assert message["To"] == "user@example.com"
     assert message.is_multipart()
@@ -96,7 +96,7 @@ async def test_send_otp_email_uses_brevo_when_key_present(monkeypatch):
             brevo_api_key="brevo-key",
             email_username="dmrs.support@gmail.com",
             email_from="dmrs.support@gmail.com",
-            email_from_name="DMRS",
+            email_from_name="StudyMind",
             email_timeout=15.0,
             app_env="production",
         ),
@@ -134,7 +134,7 @@ async def test_send_account_created_email_does_not_raise_in_dev_mode(monkeypatch
             email_username="dmrs.support@gmail.com",
             email_password="your-gmail-app-password",
             email_from="dmrs.support@gmail.com",
-            email_from_name="DMRS",
+            email_from_name="StudyMind",
             email_timeout=15.0,
             app_env="development",
         ),

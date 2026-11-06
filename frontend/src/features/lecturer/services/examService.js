@@ -1,7 +1,6 @@
 // Quản lý lịch thi (theo môn) — gọi backend thật.
 import api from '../../../services/api'
 import { ENDPOINTS } from '../../../constants'
-
 import { SUBJECTS } from '../../../constants/subjects'
 
 export function getSubjects() { return SUBJECTS }
@@ -40,3 +39,46 @@ export async function getRecentSubmissions(limit = 10) {
   return data || []
 }
 
+export async function getExamResources() {
+  const { data } = await api.get('/api/v1/exams/resources')
+  return data || { documents: [], quizzes: [] }
+}
+
+
+export async function downloadSampleQuizTemplate() {
+  const resp = await api.get('/api/v1/quizzes/sample-template', {
+    responseType: 'blob',
+  })
+  const url = window.URL.createObjectURL(new Blob([resp.data]))
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', 'De_thi_trac_nghiem_mau.docx')
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
+}
+
+export async function parseDocxQuiz(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/api/v1/quizzes/parse-docx', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function importDocxQuiz(file, title) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (title) formData.append('title', title)
+  const { data } = await api.post('/api/v1/quizzes/import-docx', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
+export async function createCustomQuiz(payload) {
+  const { data } = await api.post('/api/v1/quizzes/custom', payload)
+  return data
+}

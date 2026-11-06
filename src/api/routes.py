@@ -15,6 +15,7 @@ from src.api.controllers import (
     chat_controller,
     chat_stream_controller,
     create_classroom_controller,
+    create_custom_quiz_controller,
     create_exam_controller,
     create_flashcard_controller,
     create_student_controller,
@@ -29,6 +30,7 @@ from src.api.controllers import (
     delete_student_controller,
     delete_user_controller,
     diagnostics_controller,
+    download_sample_quiz_template_controller,
     eval_report_controller,
     feedback_summary_controller,
     forgot_password_controller,
@@ -36,11 +38,13 @@ from src.api.controllers import (
     generate_quiz_controller,
     get_classroom_controller,
     get_document_download_controller,
+    get_exam_resources_controller,
     get_messages_controller,
     get_quiz_controller,
     get_user_by_id_controller,
     gmail_login_controller,
     grant_user_pro_controller,
+    import_docx_quiz_controller,
     ingest_sample_dataset_controller,
     join_classroom_controller,
     leave_classroom_controller,
@@ -62,6 +66,7 @@ from src.api.controllers import (
     list_users_controller,
     login_controller,
     mark_document_viewed_controller,
+    parse_docx_quiz_controller,
     register_link_document_controller,
     remove_student_from_classroom_controller,
     rename_conversation_controller,
@@ -93,6 +98,7 @@ from src.models import (
     ChatResponse,
     ConversationSummary,
     CreateUserRequest,
+    CustomQuizCreate,
     DeleteConversationResponse,
     DeleteDocumentResponse,
     DocumentDownloadResponse,
@@ -153,9 +159,12 @@ from src.models.classroom import (
     JoinClassroomRequest,
 )
 from src.services.billing import (
+    create_payos_checkout,
     create_vnpay_checkout,
     get_billing_status,
+    process_payos_webhook,
     process_vnpay_ipn,
+    query_payos_and_reconcile,
     query_vnpay_and_reconcile,
     reserve_chat_use,
     verify_vnpay_signature,
@@ -667,13 +676,22 @@ async def delete_student(
     return await delete_student_controller(session, user, student_id)
 
 
+@router.get("/exams/resources", tags=["academic"])
+async def get_exam_resources(
+    session: AsyncSession = Depends(get_db),
+    user=Depends(require_admin_or_lecturer),
+) -> dict:
+    return await get_exam_resources_controller(session, user)
+
+
 @router.get("/exams", response_model=list[ExamResponse], tags=["academic"])
 async def list_exams(
     subject: str | None = None,
+    classroom_id: str | None = None,
     session: AsyncSession = Depends(get_db),
-    user=Depends(require_admin_or_lecturer),
+    user=Depends(get_current_user),
 ) -> list[ExamResponse]:
-    return await list_exams_controller(session, user, subject=subject)
+    return await list_exams_controller(session, user, subject=subject, classroom_id=classroom_id)
 
 
 @router.post("/exams", response_model=ExamResponse, status_code=201, tags=["academic"])
@@ -868,6 +886,18 @@ async def vnpay_checkout(
             user.role_id = student_role.id
             await session.commit()
 
+    from src.config import get_settings
+    settings = get_settings()
+
+    # Nếu đã cấu hình PayOS (ưu tiên nhận tiền qua STK cá nhân VietQR)
+    if settings.payos_client_id and settings.payos_api_key and settings.payos_checksum_key:
+        result = await create_payos_checkout(
+            session,
+            user=user,
+            return_to=payload.return_to,
+        )
+        return VnPayPaymentCreateResponse(**result)
+
     ip_address = _extract_ipv4(request)
     result = await create_vnpay_checkout(
         session,
@@ -912,17 +942,44 @@ async def reconcile_vnpay_payment(
 
     from src.config import get_settings
 
-    server_ip = (get_settings().vnpay_server_ip or "127.0.0.1").strip()
-    status = await query_vnpay_and_reconcile(
-        session,
-        order_code=order_code,
-        ip_address=server_ip,
-    )
+    if payment.provider == "payos":
+        status = await query_payos_and_reconcile(
+            session,
+            order_code=order_code,
+        )
+        msg_pending = "Chưa nhận được giao dịch chuyển khoản PayOS. Vui lòng kiểm tra lại sau khi chuyển tiền."
+    else:
+        server_ip = (get_settings().vnpay_server_ip or "127.0.0.1").strip()
+        status = await query_vnpay_and_reconcile(
+            session,
+            order_code=order_code,
+            ip_address=server_ip,
+        )
+        msg_pending = "VNPay chưa xác nhận giao dịch. Vui lòng kiểm tra lại sau."
+
     return VnPayReconcileResponse(
         order_code=order_code,
         status="paid" if status == "paid" else "pending",
-        message="Đã xác nhận thanh toán và kích hoạt Pro." if status == "paid" else "VNPay chưa xác nhận giao dịch. Vui lòng kiểm tra lại sau.",
+        message="Đã xác nhận thanh toán và kích hoạt Pro." if status == "paid" else msg_pending,
     )
+
+
+@router.post(
+    "/payments/payos/webhook",
+    tags=["payments"],
+    summary="PayOS Webhook",
+    description="Nhận thông báo chuyển khoản thành công từ PayOS.",
+)
+async def payos_webhook(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        body = await request.json()
+    except Exception:
+        return {"code": "00", "desc": "success"}
+
+    return await process_payos_webhook(session, body)
 
 
 @router.get(
@@ -1179,6 +1236,58 @@ async def generate_quiz(
     _user=Depends(get_current_user),
 ) -> QuizItem:
     return await generate_quiz_controller(session, document_id, payload, user=_user)
+
+
+@router.get(
+    "/quizzes/sample-template",
+    tags=["study-aid"],
+    summary="Download sample .docx quiz template for importing questions",
+)
+async def download_sample_quiz_template():
+    return await download_sample_quiz_template_controller()
+
+
+@router.post(
+    "/quizzes/parse-docx",
+    tags=["study-aid"],
+    summary="Parse uploaded .docx file and return extracted questions for preview",
+)
+async def parse_docx_quiz(
+    file: UploadFile = File(...),
+    _user=Depends(require_admin_or_lecturer),
+) -> dict:
+    return await parse_docx_quiz_controller(file)
+
+
+@router.post(
+    "/quizzes/import-docx",
+    response_model=QuizItem,
+    status_code=201,
+    tags=["study-aid"],
+    summary="Import quiz questions directly from .docx file",
+)
+async def import_docx_quiz(
+    file: UploadFile = File(...),
+    title: str | None = Form(default=None),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(require_admin_or_lecturer),
+) -> QuizItem:
+    return await import_docx_quiz_controller(session, user, file, title=title)
+
+
+@router.post(
+    "/quizzes/custom",
+    response_model=QuizItem,
+    status_code=201,
+    tags=["study-aid"],
+    summary="Create a custom quiz from question list",
+)
+async def create_custom_quiz(
+    payload: CustomQuizCreate,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(require_admin_or_lecturer),
+) -> QuizItem:
+    return await create_custom_quiz_controller(session, user, payload)
 
 
 @router.get(

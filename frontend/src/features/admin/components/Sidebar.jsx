@@ -5,6 +5,7 @@ import {
   UsersIcon,
   FolderIcon,
   BarChartIcon,
+  CalendarIcon,
 } from '../../../components/common/icons.jsx'
 
 // Biểu tượng tia sét StudyMind
@@ -32,6 +33,7 @@ const MENU = [
   { to: '/admin', label: 'Bảng điều khiển', icon: GridIcon, end: true },
   { to: '/admin/users', label: 'Quản lý người dùng', icon: UsersIcon },
   { to: '/admin/documents', label: 'Kho tài liệu', icon: FolderIcon },
+  { to: '/admin/exams', label: 'Quản lý lịch thi', icon: CalendarIcon },
   { to: '/admin/analytics', label: 'Thống kê & Chất lượng AI', icon: BarChartIcon },
 ]
 

@@ -109,7 +109,7 @@ async def get_quiz(
 async def create_quiz(
     session: AsyncSession,
     *,
-    document_id: str,
+    document_id: str | None = None,
     title: str,
     questions: list[dict[str, Any]],
     user_id: str | None = None,

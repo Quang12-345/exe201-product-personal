@@ -233,11 +233,11 @@ function ChatPage() {
       if (redirectUrl) {
         window.location.assign(redirectUrl)
       } else {
-        setBillingError('Không nhận được đường dẫn thanh toán từ VNPay.')
+        setBillingError('Không nhận được đường dẫn thanh toán từ cổng thanh toán.')
       }
     } catch (error) {
       const detail = error?.response?.data?.detail
-      setBillingError(typeof detail === 'string' ? detail : detail?.message || 'Không thể tạo thanh toán VNPay. Vui lòng thử lại.')
+      setBillingError(typeof detail === 'string' ? detail : detail?.message || 'Không thể tạo thanh toán cổng thanh toán. Vui lòng thử lại.')
     } finally {
       setCheckoutBusy(false)
     }
@@ -257,7 +257,7 @@ function ChatPage() {
       if (result.status === 'paid') setBilling(await getBillingStatus())
     } catch (error) {
       const detail = error?.response?.data?.detail
-      setPaymentCheckError(typeof detail === 'string' ? detail : detail?.message || 'Chưa kiểm tra được giao dịch VNPay.')
+      setPaymentCheckError(typeof detail === 'string' ? detail : detail?.message || 'Chưa kiểm tra được giao dịch cổng thanh toán.')
     } finally {
       setPaymentCheckBusy(false)
     }
@@ -318,7 +318,7 @@ function ChatPage() {
             </button>
             <span className="st-assistant-icon"><BotIcon size={18} /></span>
             <div>
-              <strong>{conv.active?.title || 'DMRS Assistant'}</strong>
+              <strong>{conv.active?.title || 'StudyMind Assistant'}</strong>
               <span className="st-online">● Sẵn sàng hỗ trợ</span>
             </div>
           </div>
@@ -354,7 +354,7 @@ function ChatPage() {
 
         <div className="st-billing-bar" aria-live="polite">
           <div className="st-billing-main">
-            <strong>{billing?.is_pro ? 'DMRS Pro' : 'Gói miễn phí'}</strong>
+            <strong>{billing?.is_pro ? 'Gói Pro' : 'Gói miễn phí'}</strong>
             {billing ? (
               <div
                 className="st-usage-meter"
@@ -408,11 +408,11 @@ function ChatPage() {
         {paymentResult && (
           <div className={'st-payment-result ' + (paymentResult === 'success' || (paymentResult === 'pending' && (billing?.is_pro || paymentCheckStatus === 'paid')) ? 'is-success' : '')}>
             <p role="status">
-              {paymentResult === 'success' || (paymentResult === 'pending' && (billing?.is_pro || paymentCheckStatus === 'paid')) ? 'Thanh toán thành công. Gói Pro đã được kích hoạt.' : paymentResult === 'pending' ? (paymentCheckStatus === 'pending' ? 'VNPay chưa xác nhận giao dịch. Đơn vẫn được giữ để kiểm tra lại.' : 'Đang kiểm tra trạng thái giao dịch với VNPay.') : paymentResult === 'failed' ? 'Giao dịch chưa thành công. Bạn vẫn có thể thử lại.' : 'Không xác thực được kết quả thanh toán.'}
+              {paymentResult === 'success' || (paymentResult === 'pending' && (billing?.is_pro || paymentCheckStatus === 'paid')) ? 'Thanh toán thành công. Gói Pro đã được kích hoạt.' : paymentResult === 'pending' ? (paymentCheckStatus === 'pending' ? 'cổng thanh toán chưa xác nhận giao dịch. Đơn vẫn được giữ để kiểm tra lại.' : 'Đang kiểm tra trạng thái giao dịch với cổng thanh toán.') : paymentResult === 'failed' ? 'Giao dịch chưa thành công. Bạn vẫn có thể thử lại.' : 'Không xác thực được kết quả thanh toán.'}
             </p>
             {paymentResult === 'pending' && paymentOrderCode && !billing?.is_pro && (
               <button type="button" className="st-payment-check" onClick={checkPayment} disabled={paymentCheckBusy}>
-                {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra giao dịch với VNPay'}
+                {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra giao dịch với cổng thanh toán'}
               </button>
             )}
             {paymentCheckError && <p role="alert">{paymentCheckError}</p>}
@@ -434,7 +434,7 @@ function ChatPage() {
             {messages.every((m) => String(m.id).startsWith('g')) && !conv.sending && (
               <SuggestedQuestions questions={primaryFaqs} onPick={(q) => conv.send(q)} disabled={conv.sending || !canAsk} />
             )}
-            {conv.sending && <TypingIndicator label="DMRS Assistant đang trả lời" />}
+            {conv.sending && <TypingIndicator label="StudyMind đang trả lời" />}
             <div ref={bottomRef} />
           </div>
 

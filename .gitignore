@@ -70,3 +70,6 @@ datasets/uploads/
 
 # Nested duplicate clone directory
 exe201-product-personal/
+
+# Scratch / temporary scripts
+scratch/

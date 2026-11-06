@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC
+from typing import Any
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
+from fastapi.responses import Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import User
 from src.models.study_aid import (
+    CustomQuizCreate,
     FlashcardCreate,
     FlashcardItem,
     GenerateFlashcardsRequest,
@@ -41,7 +45,7 @@ async def require_pro_student(session: AsyncSession, user: User | None) -> None:
     """Xác thực quyền sử dụng tính năng Flashcard & Quiz.
 
     - Admin & Giảng viên: luôn được phép sử dụng.
-    - Sinh viên: bắt buộc phải có gói DMRS Pro đang hoạt động.
+    - Sinh viên: bắt buộc phải có gói Pro đang hoạt động.
     """
     if not user:
         raise HTTPException(status_code=401, detail="Vui lòng đăng nhập để tiếp tục.")
@@ -55,7 +59,7 @@ async def require_pro_student(session: AsyncSession, user: User | None) -> None:
         if subscription is None:
             raise HTTPException(
                 status_code=403,
-                detail="Tính năng Flashcard & Quiz chỉ dành cho tài khoản DMRS Pro. Vui lòng nâng cấp gói để sử dụng.",
+                detail="Tính năng Flashcard & Quiz chỉ dành cho tài khoản Pro. Vui lòng nâng cấp gói để sử dụng.",
             )
 
 
@@ -211,13 +215,56 @@ async def list_document_quizzes_controller(
     ]
 
 
+async def _is_exam_quiz(session: AsyncSession, quiz_id: str) -> bool:
+    try:
+        from sqlalchemy import select
+
+        from src.db.models import Exam
+        res = await session.execute(select(Exam.id).where(Exam.quiz_id == quiz_id))
+        return res.scalars().first() is not None
+    except Exception:
+        return False
+
+
+async def _ensure_student_can_take_quiz(session: AsyncSession, user: User, quiz_id: str) -> None:
+    role = _role_name(user)
+    if role != "student":
+        return
+
+    from src.db.models import Exam
+    from src.repositories import classroom_repo
+
+    exam_res = await session.execute(select(Exam).where(Exam.quiz_id == quiz_id))
+    exam = exam_res.scalars().first()
+    if not exam:
+        return
+
+    enrolled = await classroom_repo.list_student_enrolled_classrooms(session, user)
+    enrolled_ids = {c.id for c in enrolled}
+    enrolled_subjects = {c.subject.strip().lower() for c in enrolled if c.subject}
+
+    allowed = False
+    if exam.classroom_id and exam.classroom_id in enrolled_ids:
+        allowed = True
+    elif exam.subject and exam.subject.strip().lower() in enrolled_subjects:
+        allowed = True
+
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Bạn chưa tham gia lớp học của môn này nên không có quyền làm bài thi.",
+        )
+
+
 async def get_quiz_controller(
     session: AsyncSession,
     user: User,
     quiz_id: str,
     include_answers: bool = False,
 ) -> QuizItem:
-    await require_pro_student(session, user)
+    await _ensure_student_can_take_quiz(session, user, quiz_id)
+    if not await _is_exam_quiz(session, quiz_id):
+        await require_pro_student(session, user)
     quiz = await study_aid_repo.get_quiz(session, quiz_id, load_questions=True)
     if not quiz:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài Quiz.")
@@ -343,7 +390,9 @@ async def submit_quiz_controller(
     quiz_id: str,
     payload: QuizSubmitRequest,
 ) -> QuizSubmitResponse:
-    await require_pro_student(session, user)
+    await _ensure_student_can_take_quiz(session, user, quiz_id)
+    if not await _is_exam_quiz(session, quiz_id):
+        await require_pro_student(session, user)
     result = await study_aid_service.evaluate_quiz_submission(
         session,
         quiz_id=quiz_id,
@@ -427,3 +476,153 @@ async def list_recent_submissions_controller(
         for item in items
     ]
 
+
+
+# ---------------- DOCX Quiz Import & Template Controllers ----------------
+
+
+async def download_sample_quiz_template_controller() -> Response:
+    from src.services.docx_quiz_parser import generate_sample_docx_template
+
+    buf = generate_sample_docx_template()
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": "attachment; filename=De_thi_trac_nghiem_mau.docx",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
+
+async def parse_docx_quiz_controller(file: UploadFile) -> dict[str, Any]:
+    import io
+
+    from src.services.docx_quiz_parser import parse_docx_quiz
+
+    if not file.filename or not file.filename.lower().endswith(".docx"):
+        raise HTTPException(
+            status_code=400,
+            detail="Vui lòng tải lên file định dạng Word (.docx).",
+        )
+
+    content = await file.read()
+    buf = io.BytesIO(content)
+    try:
+        parsed = parse_docx_quiz(buf, default_title=file.filename.rsplit(".", 1)[0])
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không thể đọc file Word: {exc}",
+        )
+
+    if parsed["total"] == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Không bóc tách được câu hỏi nào từ file. Vui lòng kiểm tra lại cấu trúc file theo mẫu chuẩn (ví dụ: 'Câu 1:', 'A.', 'B.',...).",
+        )
+
+    return parsed
+
+
+async def import_docx_quiz_controller(
+    session: AsyncSession,
+    user: User,
+    file: UploadFile,
+    title: str | None = None,
+) -> QuizItem:
+    import io
+
+    from src.services.docx_quiz_parser import parse_docx_quiz
+
+    if not file.filename or not file.filename.lower().endswith(".docx"):
+        raise HTTPException(
+            status_code=400,
+            detail="Vui lòng tải lên file định dạng Word (.docx).",
+        )
+
+    content = await file.read()
+    buf = io.BytesIO(content)
+    try:
+        parsed = parse_docx_quiz(buf, default_title=file.filename.rsplit(".", 1)[0])
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không thể đọc file Word: {exc}",
+        )
+
+    if parsed["total"] == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Không bóc tách được câu hỏi nào từ file. Vui lòng kiểm tra lại cấu trúc file theo mẫu chuẩn.",
+        )
+
+    quiz_title = (title or parsed["title"] or file.filename.rsplit(".", 1)[0]).strip()
+    quiz = await study_aid_repo.create_quiz(
+        session,
+        document_id=None,
+        title=quiz_title,
+        questions=parsed["questions"],
+        user_id=user.id,
+    )
+    await session.commit()
+
+    return QuizItem(
+        id=quiz.id,
+        document_id=quiz.document_id,
+        title=quiz.title,
+        created_at=_to_utc(quiz.created_at),
+        questions=[
+            QuizQuestionItem(
+                id=q.id,
+                quiz_id=q.quiz_id,
+                question_text=q.question_text,
+                options=q.options if isinstance(q.options, list) else list(q.options),
+                correct_answer=q.correct_answer,
+                explanation=q.explanation,
+            )
+            for q in quiz.questions
+        ],
+    )
+
+
+async def create_custom_quiz_controller(
+    session: AsyncSession,
+    user: User,
+    payload: CustomQuizCreate,
+) -> QuizItem:
+    questions_data = [
+        {
+            "question_text": q.question_text,
+            "options": q.options,
+            "correct_answer": q.correct_answer,
+            "explanation": q.explanation,
+        }
+        for q in payload.questions
+    ]
+    quiz = await study_aid_repo.create_quiz(
+        session,
+        document_id=None,
+        title=payload.title.strip(),
+        questions=questions_data,
+        user_id=user.id,
+    )
+    await session.commit()
+
+    return QuizItem(
+        id=quiz.id,
+        document_id=quiz.document_id,
+        title=quiz.title,
+        created_at=_to_utc(quiz.created_at),
+        questions=[
+            QuizQuestionItem(
+                id=q.id,
+                quiz_id=q.quiz_id,
+                question_text=q.question_text,
+                options=q.options if isinstance(q.options, list) else list(q.options),
+                correct_answer=q.correct_answer,
+                explanation=q.explanation,
+            )
+            for q in quiz.questions
+        ],
+    )

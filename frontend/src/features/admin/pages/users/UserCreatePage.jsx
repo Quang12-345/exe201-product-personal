@@ -147,7 +147,7 @@ function UserCreatePage() {
             <div className="dmrs-field-row">
               <div className="dmrs-field">
                 <label>Email công vụ</label>
-                <input name="email" type="email" value={form.email} onChange={change} placeholder="example@dmrs.edu.vn" required />
+                <input name="email" type="email" value={form.email} onChange={change} placeholder="example@studymind.edu.vn" required />
               </div>
               <div className="dmrs-field">
                 <label>Mã số nhân viên</label>

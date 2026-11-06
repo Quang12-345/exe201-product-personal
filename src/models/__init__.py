@@ -72,6 +72,7 @@ from src.models.stats import (
     UnansweredQuestion,
 )
 from src.models.study_aid import (
+    CustomQuizCreate,
     FlashcardCreate,
     FlashcardItem,
     GenerateFlashcardsRequest,
@@ -152,6 +153,7 @@ __all__ = [
     "RegisterVerifyRequest",
     "RegisterResendRequest",
     "FlashcardItem",
+    "CustomQuizCreate",
     "FlashcardCreate",
     "GenerateFlashcardsRequest",
     "QuizQuestionItem",

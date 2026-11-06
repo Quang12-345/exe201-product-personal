@@ -5,6 +5,7 @@ from src.api.controllers.academic_controller import (
     create_student_controller,
     delete_exam_controller,
     delete_student_controller,
+    get_exam_resources_controller,
     list_exams_controller,
     list_students_controller,
     update_exam_controller,
@@ -65,17 +66,21 @@ from src.api.controllers.document_controller import (
 )
 from src.api.controllers.stats_controller import stats_analytics_controller, stats_overview_controller
 from src.api.controllers.study_aid_controller import (
+    create_custom_quiz_controller,
     create_flashcard_controller,
     delete_flashcard_controller,
     delete_quiz_controller,
+    download_sample_quiz_template_controller,
     generate_flashcards_controller,
     generate_quiz_controller,
     get_quiz_controller,
+    import_docx_quiz_controller,
     list_document_flashcards_controller,
     list_document_quizzes_controller,
     list_my_attempts_controller,
     list_quiz_attempts_controller,
     list_recent_submissions_controller,
+    parse_docx_quiz_controller,
     submit_quiz_controller,
 )
 from src.api.controllers.user_controller import (
@@ -123,6 +128,7 @@ __all__ = [
     "create_student_controller",
     "update_student_controller",
     "delete_student_controller",
+    "get_exam_resources_controller",
     "list_exams_controller",
     "create_exam_controller",
     "update_exam_controller",
@@ -152,6 +158,10 @@ __all__ = [
     "generate_quiz_controller",
     "delete_quiz_controller",
     "submit_quiz_controller",
+    "download_sample_quiz_template_controller",
+    "parse_docx_quiz_controller",
+    "import_docx_quiz_controller",
+    "create_custom_quiz_controller",
     "list_quiz_attempts_controller",
     "list_my_attempts_controller",
     "list_recent_submissions_controller",

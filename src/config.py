@@ -243,7 +243,7 @@ class Settings(BaseSettings):
     email_username: str = Field(default="", validation_alias="EMAIL_USERNAME")
     email_password: str = Field(default="", validation_alias="EMAIL_PASSWORD")
     email_from: str = Field(default="", validation_alias="EMAIL_FROM")
-    email_from_name: str = Field(default="DMRS", validation_alias="EMAIL_FROM_NAME")
+    email_from_name: str = Field(default="StudyMind", validation_alias="EMAIL_FROM_NAME")
     # Số giây timeout cho mỗi lần kết nối SMTP (fail nhanh thay vì treo ~60s).
     email_timeout: float = Field(
         default=15.0,
@@ -272,6 +272,16 @@ class Settings(BaseSettings):
         validation_alias="VNPAY_RETURN_URL",
     )
     frontend_url: str = Field(default="http://localhost:5173", validation_alias="FRONTEND_URL")
+
+    # PayOS (Cổng thanh toán VietQR tài khoản ngân hàng cá nhân)
+    payos_client_id: str = Field(default="", validation_alias="PAYOS_CLIENT_ID")
+    payos_api_key: str = Field(default="", validation_alias="PAYOS_API_KEY")
+    payos_checksum_key: str = Field(default="", validation_alias="PAYOS_CHECKSUM_KEY")
+    payos_endpoint: str = Field(
+        default="https://api-merchant.payos.vn",
+        validation_alias="PAYOS_ENDPOINT",
+    )
+
 
     # Token quotas (Plan limits)
     free_daily_token_limit: int = Field(
@@ -317,6 +327,14 @@ class Settings(BaseSettings):
             self.vnpay_payment_url = self.vnpay_payment_url.strip()
         if isinstance(self.vnpay_query_url, str):
             self.vnpay_query_url = self.vnpay_query_url.strip()
+        if isinstance(self.payos_client_id, str):
+            self.payos_client_id = self.payos_client_id.strip()
+        if isinstance(self.payos_api_key, str):
+            self.payos_api_key = self.payos_api_key.strip()
+        if isinstance(self.payos_checksum_key, str):
+            self.payos_checksum_key = self.payos_checksum_key.strip()
+        if isinstance(self.payos_endpoint, str):
+            self.payos_endpoint = self.payos_endpoint.strip()
         if isinstance(self.frontend_url, str):
             self.frontend_url = self.frontend_url.strip().rstrip("/")
         if isinstance(self.google_client_id, str):

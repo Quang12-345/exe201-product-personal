@@ -149,6 +149,11 @@ class Classroom(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    exams: Mapped[list[Exam]] = relationship(
+        back_populates="classroom",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class Document(Base):
@@ -277,15 +282,34 @@ class Exam(Base):
     room: Mapped[str | None] = mapped_column(String(100), nullable=True)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=0)
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    classroom_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("classrooms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     created_by: Mapped[str | None] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    document_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    quiz_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("quizzes.id", ondelete="SET NULL"),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
     creator: Mapped[User | None] = relationship(back_populates="created_exams")
+    classroom: Mapped[Classroom | None] = relationship(foreign_keys=[classroom_id], back_populates="exams")
+    document: Mapped[Document | None] = relationship(foreign_keys=[document_id])
+    quiz: Mapped[Quiz | None] = relationship(foreign_keys=[quiz_id])
 
 
 class Conversation(Base):
@@ -515,8 +539,8 @@ class Quiz(Base):
     __tablename__ = "quizzes"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    document_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("documents.id", ondelete="CASCADE"), index=True
+    document_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("documents.id", ondelete="CASCADE"), nullable=True, index=True
     )
     user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
@@ -524,7 +548,7 @@ class Quiz(Base):
     title: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
-    document: Mapped[Document] = relationship(back_populates="quizzes")
+    document: Mapped[Document | None] = relationship(back_populates="quizzes")
     user: Mapped[User | None] = relationship(back_populates="quizzes")
     questions: Mapped[list[QuizQuestion]] = relationship(
         back_populates="quiz",

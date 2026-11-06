@@ -435,7 +435,7 @@ export default function StudyPage() {
               onClick={checkPayment}
               disabled={paymentCheckBusy}
             >
-              {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra giao dịch với VNPay'}
+              {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra trạng thái thanh toán'}
             </button>
           )}
           {paymentCheckError && (
@@ -452,7 +452,7 @@ export default function StudyPage() {
           <div className="study-pro-banner-content">
             <span className="study-pro-crown">👑</span>
             <div>
-              <strong>Nâng cấp DMRS Pro để mở khóa tính năng Tạo Flashcard & Quiz bằng AI</strong>
+              <strong>Nâng cấp gói Pro để mở khóa tính năng Tạo Flashcard & Quiz bằng AI</strong>
               <p>Học viên Pro được tạo thẻ ghi nhớ và sinh đề thi ôn tập trắc nghiệm không giới hạn theo tài liệu.</p>
             </div>
           </div>
@@ -612,9 +612,9 @@ export default function StudyPage() {
         !isPro ? (
           <div className="study-pro-locked-box">
             <div className="study-pro-locked-icon">🔒</div>
-            <h3 className="study-pro-locked-title">Lịch sử làm bài chỉ dành cho DMRS Pro</h3>
+            <h3 className="study-pro-locked-title">Lịch sử làm bài chỉ dành cho gói Pro</h3>
             <p className="study-pro-locked-desc">
-              Tài khoản của bạn hiện là gói Miễn phí. Lịch sử làm bài thi trắc nghiệm và thống kê điểm số chỉ có thể sử dụng khi nâng cấp gói <strong>DMRS Pro</strong>.
+              Tài khoản của bạn hiện là gói Miễn phí. Lịch sử làm bài thi trắc nghiệm và thống kê điểm số chỉ có thể sử dụng khi nâng cấp <strong>gói Pro</strong>.
             </p>
             <button
               type="button"
@@ -622,7 +622,7 @@ export default function StudyPage() {
               onClick={handleBuyPro}
               disabled={checkoutBusy}
             >
-              {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp DMRS Pro để mở khóa · 99.000đ/tháng'}
+              {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 99.000đ/tháng'}
             </button>
           </div>
         ) : (

@@ -6,6 +6,7 @@ import {
   SparklesIcon,
   ArchiveIcon,
   UserIcon,
+  CalendarIcon,
 } from '../../../components/common/icons.jsx'
 
 // Biểu tượng tia sét StudyMind
@@ -32,6 +33,7 @@ function StudyMindMiniLogo({ size = 18 }) {
 const MENU = [
   { to: '/lecturer', label: 'Trang chủ', icon: HomeIcon, end: true, tour: 'nav-home' },
   { to: '/lecturer/classes', label: 'Lớp học', icon: BookOpenIcon, tour: 'nav-classes' },
+  { to: '/lecturer/exams', label: 'Lịch thi', icon: CalendarIcon, tour: 'nav-exams' },
   { to: '/lecturer/chat', label: 'Sổ tay AI', icon: SparklesIcon, tour: 'nav-chat' },
   { to: '/lecturer/documents', label: 'Thư viện', icon: ArchiveIcon, tour: 'nav-library' },
   { to: '/lecturer/settings', label: 'Hồ sơ', icon: UserIcon, tour: 'nav-settings' },

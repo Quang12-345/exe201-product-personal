@@ -18,9 +18,9 @@ from src.services.email_templates import (
 )
 
 logger = logging.getLogger(__name__)
-PASSWORD_RESET_SUBJECT = "DMRS - Mã xác thực đặt lại mật khẩu"
-EMAIL_VERIFY_SUBJECT = "DMRS - Mã OTP xác nhận tài khoản"
-ACCOUNT_CREATED_SUBJECT = "DMRS - Thông tin tài khoản của bạn"
+PASSWORD_RESET_SUBJECT = "StudyMind - Mã xác thực đặt lại mật khẩu"
+EMAIL_VERIFY_SUBJECT = "StudyMind - Mã OTP xác nhận tài khoản"
+ACCOUNT_CREATED_SUBJECT = "StudyMind - Thông tin tài khoản của bạn"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 SMTP_MAX_ATTEMPTS = 2
 
@@ -58,7 +58,7 @@ Mã OTP này sẽ hết hạn sau 5 phút.
 Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.
 
 Trân trọng,
-Đội ngũ hỗ trợ DMRS
+Đội ngũ hỗ trợ StudyMind
 """
     return text_content, get_password_reset_template(otp), PASSWORD_RESET_SUBJECT
 
@@ -70,10 +70,10 @@ Mã OTP xác nhận tài khoản của bạn là: {otp}
 
 Mã OTP này sẽ hết hạn sau 5 phút.
 
-Nếu bạn không đăng ký tài khoản DMRS, vui lòng bỏ qua email này.
+Nếu bạn không đăng ký tài khoản StudyMind, vui lòng bỏ qua email này.
 
 Trân trọng,
-Đội ngũ hỗ trợ DMRS
+Đội ngũ hỗ trợ StudyMind
 """
     return text_content, get_email_verification_template(otp), EMAIL_VERIFY_SUBJECT
 
@@ -81,7 +81,7 @@ Trân trọng,
 def _build_account_message(username: str, password: str) -> tuple[str, str, str]:
     text_content = f"""Xin chào,
 
-Tài khoản DMRS của bạn đã được tạo.
+Tài khoản StudyMind của bạn đã được tạo.
 
 Tài khoản: {username}
 Mật khẩu: {password}
@@ -89,7 +89,7 @@ Mật khẩu: {password}
 Tài khoản đang ở trạng thái chờ kích hoạt. Sau khi đăng nhập, bạn sẽ được yêu cầu cập nhật mật khẩu để kích hoạt tài khoản.
 
 Trân trọng,
-Đội ngũ hỗ trợ DMRS
+Đội ngũ hỗ trợ StudyMind
 """
     return text_content, get_account_created_template(username, password), ACCOUNT_CREATED_SUBJECT
 

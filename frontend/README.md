@@ -1,6 +1,6 @@
-# Frontend — DMRS System
+# Frontend — StudyMind System
 
-Front-end React (JavaScript) + Vite cho **Hệ thống quản lý dữ liệu DMRS**.
+Front-end React (JavaScript) + Vite cho **Hệ thống StudyMind**.
 Giao tiếp với Back-end / AI qua REST API. Người dùng sản phẩm: **Giảng viên** và **Sinh viên**. Tài khoản `admin` là console vận hành/dev, toàn quyền.
 
 ## Yêu cầu

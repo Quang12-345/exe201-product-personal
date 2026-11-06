@@ -132,9 +132,9 @@ export default function FlashcardViewer({
     return (
       <div className="study-pro-locked-box">
         <div className="study-pro-locked-icon">🔒</div>
-        <h3 className="study-pro-locked-title">Thẻ Flashcard chỉ dành cho DMRS Pro</h3>
+        <h3 className="study-pro-locked-title">Thẻ Flashcard chỉ dành cho gói Pro</h3>
         <p className="study-pro-locked-desc">
-          Tài khoản của bạn hiện là gói Miễn phí. Toàn bộ thẻ ghi nhớ Flashcard và tính năng tự động tạo thẻ bằng AI chỉ có thể sử dụng khi nâng cấp gói <strong>DMRS Pro</strong>.
+          Tài khoản của bạn hiện là gói Miễn phí. Toàn bộ thẻ ghi nhớ Flashcard và tính năng tự động tạo thẻ bằng AI chỉ có thể sử dụng khi nâng cấp <strong>gói Pro</strong>.
         </p>
         <button
           type="button"
@@ -142,7 +142,7 @@ export default function FlashcardViewer({
           onClick={onUpgradePro}
           disabled={checkoutBusy}
         >
-          {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp DMRS Pro để mở khóa · 99.000đ/tháng'}
+          {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 99.000đ/tháng'}
         </button>
       </div>
     )

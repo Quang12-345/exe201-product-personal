@@ -13,10 +13,12 @@ import {
   ArrowRightIcon,
   UsersIcon,
   ArchiveIcon,
+  CalendarIcon,
 } from '../../../components/common/icons.jsx'
 import { fetchAvailableDocuments, fetchMyQuizAttempts } from '../services/studyService.js'
 import { listConversations } from '../../../services/conversationsApi.js'
 import { getEnrolledClassrooms, joinClassroom } from '../services/classroomService.js'
+import { getStudentExams, formatExamDate } from '../services/examService.js'
 import { notify } from '../../../components/common/toast.jsx'
 
 // Hàm chuyển đổi mốc thời gian sang dạng tương đối thân thiện (VD: 1 giờ trước, Hôm qua)
@@ -52,6 +54,7 @@ function StudentDashboardPage() {
   const [attempts, setAttempts] = useState([])
   const [conversations, setConversations] = useState([])
   const [classrooms, setClassrooms] = useState([])
+  const [exams, setExams] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Modal tham gia lớp học ngay trên Dashboard
@@ -79,12 +82,14 @@ function StudentDashboardPage() {
       fetchMyQuizAttempts().catch(() => []),
       listConversations().catch(() => []),
       getEnrolledClassrooms().catch(() => []),
-    ]).then(([docs, myAttempts, convs, enrolledClasses]) => {
+      getStudentExams().catch(() => []),
+    ]).then(([docs, myAttempts, convs, enrolledClasses, examList]) => {
       if (active) {
         setDocuments(docs || [])
         setAttempts(myAttempts || [])
         setConversations(convs || [])
         setClassrooms(enrolledClasses || [])
+        setExams(examList || [])
         setLoading(false)
       }
     })
@@ -454,6 +459,108 @@ function StudentDashboardPage() {
                   </span>
                   <span className="st-class-badge">{course.document_count ?? 0} tài liệu</span>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Phần: Lịch thi sắp tới */}
+      <section className="st-section">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <h2 className="st-section-heading" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CalendarIcon size={20} /> Lịch thi sắp tới ({exams.length})
+          </h2>
+          <Link
+            to="/student/exams"
+            style={{
+              fontSize: 13,
+              fontWeight: 800,
+              color: '#000000',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            Xem tất cả <ArrowRightIcon size={14} />
+          </Link>
+        </div>
+
+        {exams.length === 0 ? (
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              border: '2px solid #000000',
+              borderRadius: 12,
+              padding: '20px 24px',
+              color: '#6b7280',
+              fontSize: 13.5,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+            }}
+          >
+            <CalendarIcon size={18} />
+            <span>Chưa có lịch thi mới nào. Bạn có thể thư giãn và tập trung ôn tập!</span>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 14,
+            }}
+          >
+            {exams.slice(0, 3).map((ex) => (
+              <div
+                key={ex.id}
+                onClick={() => navigate('/student/exams')}
+                role="button"
+                tabIndex={0}
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '2px solid #000000',
+                  borderRadius: 12,
+                  boxShadow: '3px 3px 0px #000000',
+                  padding: '16px 18px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      backgroundColor: '#eff6ff',
+                      color: '#1d4ed8',
+                      border: '1px solid #000000',
+                      borderRadius: 5,
+                      padding: '2px 7px',
+                    }}
+                  >
+                    {ex.subject}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#dc2626' }}>
+                    {formatExamDate(ex.exam_date)}
+                  </span>
+                </div>
+                <h4 style={{ fontSize: 14.5, fontWeight: 800, margin: 0, color: '#000000' }}>
+                  {ex.title}
+                </h4>
+                <div style={{ fontSize: 12.5, color: '#4b5563', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>Thời lượng: <strong>{ex.duration_minutes ? `${ex.duration_minutes} phút` : '60 phút'}</strong></span>
+                </div>
+                {ex.quiz_id && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe', padding: '1px 6px', borderRadius: 4 }}>
+                      ⚡ Trắc nghiệm online · Tự động chấm điểm
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

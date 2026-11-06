@@ -13,7 +13,7 @@ export function getInitialMessages() {
       id: 'm1',
       from: 'ai',
       time: '10:30 AM',
-      text: 'Chào Nguyễn Văn A! Tôi là trợ lý AI của hệ thống DMRS. Tôi có thể giúp bạn tìm kiếm tài liệu học tập, quy định đào tạo hoặc giải đáp các thắc mắc về hệ thống. Bạn cần hỗ trợ gì hôm nay?',
+      text: 'Chào Nguyễn Văn A! Tôi là trợ lý AI của hệ thống StudyMind. Tôi có thể giúp bạn tìm kiếm tài liệu học tập, quy định đào tạo hoặc giải đáp các thắc mắc về hệ thống. Bạn cần hỗ trợ gì hôm nay?',
       canSave: true,
     },
     {

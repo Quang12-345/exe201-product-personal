@@ -8,6 +8,7 @@ import UserEditPage from './pages/users/UserEditPage.jsx'
 import DocumentsPage from './pages/documents/DocumentsPage.jsx'
 import DocumentEditPage from './pages/documents/DocumentEditPage.jsx'
 import AnalyticsPage from './pages/AnalyticsPage.jsx'
+import AdminExamsPage from './pages/AdminExamsPage.jsx'
 
 // Khu quản trị — toàn bộ nằm sau ProtectedRoute (role admin) + AdminLayout.
 function AdminRoutes() {
@@ -22,6 +23,7 @@ function AdminRoutes() {
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="documents/upload" element={<Navigate to="/admin/documents" replace />} />
           <Route path="documents/:id/edit" element={<DocumentEditPage />} />
+          <Route path="exams" element={<AdminExamsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           {/* Trang "Chất lượng AI" đã gộp vào Thống kê — giữ redirect cho link cũ. */}
           <Route path="ai-quality" element={<Navigate to="/admin/analytics" replace />} />

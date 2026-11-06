@@ -5,6 +5,7 @@ import {
   getClassroomDocuments,
   getDownloadUrl,
 } from '../services/classroomService'
+import { getExamsByClassroom, formatExamDate } from '../services/examService'
 import DocumentViewerModal from '../../../components/common/DocumentViewerModal.jsx'
 import {
   BookOpenIcon,
@@ -27,6 +28,7 @@ export default function StudentClassroomDetailPage() {
 
   const [classroom, setClassroom] = useState(null)
   const [documents, setDocuments] = useState([])
+  const [exams, setExams] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [copiedCode, setCopiedCode] = useState(false)
@@ -37,12 +39,14 @@ export default function StudentClassroomDetailPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [classData, docsData] = await Promise.all([
+      const [classData, docsData, examsData] = await Promise.all([
         getClassroom(id),
         getClassroomDocuments(id),
+        getExamsByClassroom(id).catch(() => []),
       ])
       setClassroom(classData)
       setDocuments(docsData || [])
+      setExams(examsData || [])
     } catch {
       notify('Không thể tải thông tin lớp học.', 'error')
     } finally {
@@ -336,6 +340,95 @@ export default function StudentClassroomDetailPage() {
         <div style={{ fontSize: 13.5, color: '#1e3a8a', lineHeight: 1.4 }}>
           <strong>Tài liệu học tập cô lập:</strong> Tất cả tài liệu dưới đây chỉ thuộc riêng lớp học này và được giảng viên quản lý. Bạn có thể xem trước, tải về, sinh Flashcard và làm đề thi trắc nghiệm Quiz trực tiếp từ tài liệu.
         </div>
+      </div>
+
+      {/* KHỐI LỊCH THI & BÀI KIỂM TRA TRẮC NGHIỆM CỦA LỚP */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0, color: '#000000', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>⚡</span> Lịch thi & Bài kiểm tra của lớp ({exams.length})
+          </h2>
+          <Link to="/student/exams" style={{ fontSize: 13, fontWeight: 700, color: '#2563eb', textDecoration: 'none' }}>
+            Xem trang lịch thi →
+          </Link>
+        </div>
+
+        {exams.length === 0 ? (
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              border: '2px dashed #cbd5e1',
+              borderRadius: 14,
+              padding: '24px 20px',
+              textAlign: 'center',
+              color: '#64748b',
+              fontSize: 13.5,
+            }}
+          >
+            Hiện chưa có bài thi hoặc lịch kiểm tra nào cho lớp học này.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {exams.map((ex) => (
+              <div
+                key={ex.id}
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '2px solid #000000',
+                  borderRadius: 14,
+                  boxShadow: '3px 3px 0px #000000',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #000', borderRadius: 6, padding: '2px 8px' }}>
+                    {ex.subject}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
+                    {ex.duration_minutes ? `${ex.duration_minutes} phút` : 'Chưa quy định'}
+                  </span>
+                </div>
+
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                  {ex.title}
+                </h3>
+
+                <div style={{ fontSize: 12.5, color: '#64748b', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div>📅 Thời gian: <strong>{formatExamDate(ex.exam_date)}</strong></div>
+                  <div>⚡ Đề thi: <strong>{ex.quiz_title || 'Trắc nghiệm online'}</strong> {ex.quiz_question_count ? `(${ex.quiz_question_count} câu)` : ''}</div>
+                </div>
+
+                {ex.quiz_id ? (
+                  <button
+                    type="button"
+                    className="dmrs-btn dmrs-btn--primary"
+                    style={{
+                      width: '100%',
+                      justifyContent: 'center',
+                      padding: '9px 14px',
+                      fontSize: 13,
+                      fontWeight: 800,
+                      backgroundColor: '#4f46e5',
+                      borderColor: '#000000',
+                      boxShadow: '2px 2px 0px #000000',
+                      marginTop: 'auto',
+                    }}
+                    onClick={() => navigate(`/student/exams?examId=${ex.id}`)}
+                  >
+                    Vào làm bài thi trắc nghiệm →
+                  </button>
+                ) : (
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', marginTop: 'auto' }}>
+                    Giảng viên đang chuẩn bị bộ đề...
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Thanh tiêu đề danh sách tài liệu + Tìm kiếm */}
