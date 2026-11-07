@@ -276,22 +276,26 @@ DANH SÁCH CHI TIẾT TỪNG CÂU HỎI VÀ KẾT QUẢ:
 NHIỆM VỤ CỦA BẠN:
 Hãy phân tích sâu bài làm của sinh viên để đánh giá năng lực, xác định điểm mạnh, điểm yếu cốt lõi và vạch ra lộ trình học tập cá nhân hóa 3-4 bước nhằm khắc phục lỗ hổng kiến thức.
 
+QUY TẮC BẮT BUỘC VỀ VĂN PHONG VÀ NGÔN NGỮ:
+1. TUYỆT ĐỐI KHÔNG dùng dấu ba chấm (...) hay cắt ngắn câu hỏi giữa chừng. Mọi câu hỏi, vấn đề phân tích và lời khuyên PHẢI được viết đầy đủ, trọn vẹn cả câu, rõ ràng ngữ nghĩa để người học hiểu tường tận.
+2. Trình bày điểm mạnh, điểm yếu cụ thể, mang tính xây dựng và sư phạm cao, giải thích rõ ràng tại sao sai và cách khắc phục.
+
 YÊU CẦU ĐẦU RA:
 BẮT BUỘC là một JSON Object hợp lệ duy nhất, theo cấu trúc:
 {{
   "competency_level": "Xuất sắc" hoặc "Khá Giỏi" hoặc "Đạt yêu cầu" hoặc "Cần củng cố",
-  "summary": "Đoạn văn 2-3 câu nhận xét tổng quan năng lực sinh viên, thái độ học tập và mức độ thông hiểu bản chất môn học.",
+  "summary": "Đoạn văn 2-3 câu nhận xét tổng quan năng lực sinh viên, thái độ học tập và mức độ thông hiểu bản chất môn học (viết trọn câu, không cắt cụt).",
   "strengths": [
     {{
       "topic": "Tên chủ đề / khái niệm làm tốt",
-      "description": "Mô tả ngắn gọn sinh viên đã nắm chắc phần này như thế nào căn cứ vào các câu trả lời đúng."
+      "description": "Mô tả sinh viên đã nắm chắc phần này như thế nào căn cứ vào các câu trả lời đúng (viết trọn câu, không dùng dấu ba chấm lửng)."
     }}
   ],
   "weaknesses": [
     {{
       "topic": "Tên chủ đề / khái niệm bị hổng hoặc nhầm lẫn",
-      "issue": "Chỉ rõ sinh viên nhầm lẫn ở điểm nào, tại sao chọn sai phương án",
-      "advice": "Lời khuyên sư phạm ngắn gọn để ghi nhớ đúng",
+      "issue": "Chỉ rõ câu hỏi nào sinh viên nhầm lẫn và tại sao phương án chọn chưa chính xác (viết trọn vẹn câu hỏi, tuyệt đối không dùng ... cắt ngang).",
+      "advice": "Lời khuyên sư phạm chi tiết để ghi nhớ đúng",
       "failed_questions": [1, 3]
     }}
   ],
@@ -299,7 +303,7 @@ BẮT BUỘC là một JSON Object hợp lệ duy nhất, theo cấu trúc:
     {{
       "step": 1,
       "title": "Tiêu đề bước (VD: Đọc lại lý thuyết về...)",
-      "description": "Nội dung cần ôn tập chi tiết, chỉ rõ tài liệu hoặc phần cần xem lại",
+      "description": "Nội dung cần ôn tập chi tiết, chỉ rõ tài liệu hoặc phần lý thuyết cần xem lại",
       "action_type": "read",
       "document_title": "{document_title}"
     }},
@@ -337,41 +341,53 @@ def _generate_fallback_evaluation(
     failed_items = [d for d in details if not d["is_correct"]]
     correct_items = [d for d in details if d["is_correct"]]
 
+    # Làm sạch tiêu đề tài liệu & bài thi nếu bị dính ký tự phương án
+    clean_doc = (document_title or "kiến thức trọng tâm môn học").strip()
+    if clean_doc.startswith("*") or re.match(r"^[A-D][\.\):]", clean_doc) or len(clean_doc) > 60:
+        clean_doc = "kiến thức trọng tâm môn học"
+
+    clean_quiz = (quiz_title or "Bài kiểm tra").strip()
+    if clean_quiz.startswith("*") or re.match(r"^[A-D][\.\):]", clean_quiz) or len(clean_quiz) > 60:
+        clean_quiz = "Bài kiểm tra trắc nghiệm"
+
     if score >= 8.5:
         level = "Xuất sắc"
-        summary = f"Sinh viên thể hiện sự hiểu biết sâu sắc và toàn diện về bài học '{quiz_title}'. Khả năng phân tích và ghi nhớ kiến thức rất tốt, đạt điểm số ấn tượng {score}/10."
+        summary = f"Sinh viên thể hiện sự hiểu biết sâu sắc và toàn diện về bài học '{clean_quiz}'. Khả năng phân tích và ghi nhớ kiến thức rất tốt, đạt điểm số ấn tượng {score}/10."
     elif score >= 7.0:
         level = "Khá Giỏi"
-        summary = f"Sinh viên nắm vững đa số các kiến thức nền tảng của bài học '{quiz_title}' (đạt {score}/10). Tuy nhiên vẫn còn một vài điểm cần lưu ý để đạt mức độ xuất sắc."
+        summary = f"Sinh viên nắm vững đa số các kiến thức nền tảng của bài học '{clean_quiz}' (đạt {score}/10). Tuy nhiên vẫn còn một vài điểm cần lưu ý để đạt mức độ xuất sắc."
     elif score >= 5.0:
         level = "Đạt yêu cầu"
-        summary = f"Sinh viên đã đạt chuẩn đầu ra tối thiểu ({score}/10) cho bài học '{quiz_title}', nhưng còn một số khoảng trống kiến thức quan trọng cần được ôn luyện bổ sung."
+        summary = f"Sinh viên đã đạt chuẩn đầu ra tối thiểu ({score}/10) cho bài học '{clean_quiz}', nhưng còn một số khoảng trống kiến thức quan trọng cần được ôn luyện bổ sung."
     else:
         level = "Cần củng cố"
-        summary = f"Kết quả bài kiểm tra '{quiz_title}' ({score}/10) cho thấy sinh viên chưa nắm chắc các nội dung cốt lõi. Cần nhanh chóng rà soát lại tài liệu và làm lại bài luyện tập."
+        summary = f"Kết quả bài kiểm tra '{clean_quiz}' ({score}/10) cho thấy sinh viên chưa nắm chắc các nội dung cốt lõi. Cần nhanh chóng rà soát lại tài liệu và làm lại bài luyện tập."
 
-    # Xây dựng Điểm mạnh
+    # Xây dựng Điểm mạnh - VIẾT TRỌN CÂU, TUYỆT ĐỐI KHÔNG CẮT NGANG THÀNH (...)
     strengths = []
     if correct_items:
-        topics_sample = [d["question_text"][:40] + "..." for d in correct_items[:3]]
+        topics_sample = [f"\"{d['question_text'].strip()}\"" for d in correct_items[:3]]
         strengths.append({
             "topic": "Nền tảng kiến thức trọng tâm",
-            "description": f"Trả lời chính xác {len(correct_items)}/{total_questions} câu hỏi, đặc biệt là các nội dung: {'; '.join(topics_sample)}",
+            "description": f"Bạn đã trả lời chính xác {len(correct_items)}/{total_questions} câu hỏi, nắm vững nội dung các câu hỏi: {'; '.join(topics_sample)}.",
         })
     else:
         strengths.append({
             "topic": "Tinh thần tự học & hoàn thành bài thi",
-            "description": "Đã kiên trì làm và hoàn thành bài kiểm tra, tạo cơ sở xác định đúng các phần kiến thức cần tập trung bổ sung.",
+            "description": "Đã kiên trì làm và hoàn thành toàn bộ bài kiểm tra, tạo cơ sở xác định đúng các phần kiến thức cần tập trung bổ sung.",
         })
 
-    # Xây dựng Điểm yếu
+    # Xây dựng Điểm yếu - VIẾT TRỌN VẸN CÂU HỎI VÀ ĐÁP ÁN ĐÚNG
     weaknesses = []
     if failed_items:
         for idx, item in enumerate(failed_items[:3], start=1):
             q_idx = item.get("question_index", idx)
+            q_text = item["question_text"].strip()
+            correct_ans = item.get("correct_answer") or ""
+            chosen_ans = item.get("chosen_answer") or "Chưa trả lời"
             weaknesses.append({
                 "topic": f"Kiến thức câu hỏi {q_idx}",
-                "issue": f"Chưa chọn đúng phương án câu: '{item['question_text'][:60]}...'",
+                "issue": f"Chưa chọn đúng đáp án cho câu hỏi: \"{q_text}\". Lựa chọn hiện tại là \"{chosen_ans}\", trong khi đáp án chính xác là \"{correct_ans}\".",
                 "advice": item.get("explanation") or "Đọc lại phần giải thích và đối chiếu với giáo trình để hiểu rõ nguyên nhân chọn sai.",
                 "failed_questions": [q_idx],
             })
@@ -387,11 +403,11 @@ def _generate_fallback_evaluation(
     roadmap = [
         {
             "step": 1,
-            "title": f"Ôn tập lại giáo trình '{document_title}'",
-            "description": f"Đọc kỹ lại các chương lý thuyết liên quan đến {len(failed_items)} câu hỏi đã chọn sai.",
+            "title": f"Ôn tập lại phần lý thuyết '{clean_doc}'",
+            "description": f"Đọc kỹ lại các chương lý thuyết liên quan đến {len(failed_items)} câu hỏi đã chọn sai để khắc phục lỗ hổng kiến thức.",
             "action_type": "read",
             "document_id": document_id,
-            "document_title": document_title,
+            "document_title": clean_doc,
         },
         {
             "step": 2,
@@ -399,7 +415,7 @@ def _generate_fallback_evaluation(
             "description": "Luyện tập các thuật ngữ và định nghĩa quan trọng bằng phương pháp Active Recall.",
             "action_type": "flashcard",
             "document_id": document_id,
-            "document_title": document_title,
+            "document_title": clean_doc,
         },
         {
             "step": 3,
@@ -407,7 +423,7 @@ def _generate_fallback_evaluation(
             "description": "Thực hiện lại bài kiểm tra để tự đánh giá mức độ tiến bộ sau khi đã ôn tập.",
             "action_type": "quiz",
             "document_id": document_id,
-            "document_title": document_title,
+            "document_title": clean_doc,
         },
     ]
 
@@ -425,6 +441,7 @@ async def generate_learning_evaluation(
     *,
     attempt_id: str,
     student_id: str,
+    force_regenerate: bool = False,
 ) -> dict[str, Any]:
     """Sinh đánh giá năng lực học tập, điểm mạnh/yếu và lộ trình từ lượt làm bài quiz."""
     attempt = await session.get(UserQuizAttempt, attempt_id)
@@ -433,7 +450,21 @@ async def generate_learning_evaluation(
 
     # Kiểm tra xem đã có đánh giá được tạo trước đó chưa
     existing = await study_aid_repo.get_evaluation_by_attempt(session, attempt_id)
+    
+    # Kiểm tra xem bản cũ có bị dấu ba chấm lửng (...) hay không
+    has_ellipsis = False
     if existing:
+        for s in (existing.strengths or []):
+            if "..." in s.get("description", ""):
+                has_ellipsis = True
+                break
+        if not has_ellipsis:
+            for w in (existing.weaknesses or []):
+                if "..." in w.get("issue", ""):
+                    has_ellipsis = True
+                    break
+
+    if existing and not force_regenerate and not has_ellipsis:
         return {
             "id": existing.id,
             "user_id": existing.user_id,
@@ -527,19 +558,28 @@ async def generate_learning_evaluation(
         if not step.get("document_title"):
             step["document_title"] = doc_title
 
-    evaluation = await study_aid_repo.create_learning_evaluation(
-        session,
-        user_id=student_id,
-        quiz_id=quiz.id,
-        attempt_id=attempt.id,
-        score=attempt.score,
-        competency_level=eval_data.get("competency_level", "Đạt yêu cầu"),
-        summary=eval_data.get("summary", ""),
-        strengths=eval_data.get("strengths", []),
-        weaknesses=eval_data.get("weaknesses", []),
-        roadmap=eval_data.get("roadmap", []),
-    )
-    await session.commit()
+    if existing:
+        existing.competency_level = eval_data.get("competency_level", "Đạt yêu cầu")
+        existing.summary = eval_data.get("summary", "")
+        existing.strengths = eval_data.get("strengths", [])
+        existing.weaknesses = eval_data.get("weaknesses", [])
+        existing.roadmap = eval_data.get("roadmap", [])
+        await session.commit()
+        evaluation = existing
+    else:
+        evaluation = await study_aid_repo.create_learning_evaluation(
+            session,
+            user_id=student_id,
+            quiz_id=quiz.id,
+            attempt_id=attempt.id,
+            score=attempt.score,
+            competency_level=eval_data.get("competency_level", "Đạt yêu cầu"),
+            summary=eval_data.get("summary", ""),
+            strengths=eval_data.get("strengths", []),
+            weaknesses=eval_data.get("weaknesses", []),
+            roadmap=eval_data.get("roadmap", []),
+        )
+        await session.commit()
 
     return {
         "id": evaluation.id,
@@ -570,6 +610,23 @@ async def get_attempt_evaluation(
     evaluation = await study_aid_repo.get_evaluation_by_attempt(session, attempt_id)
     if not evaluation:
         return None
+
+    # Tự động nâng cấp bản cũ có dấu ba chấm (...) thành câu trọn vẹn
+    has_ellipsis = False
+    for s in (evaluation.strengths or []):
+        if "..." in s.get("description", ""):
+            has_ellipsis = True
+            break
+    if not has_ellipsis:
+        for w in (evaluation.weaknesses or []):
+            if "..." in w.get("issue", ""):
+                has_ellipsis = True
+                break
+
+    if has_ellipsis:
+        return await generate_learning_evaluation(
+            session, attempt_id=attempt_id, student_id=student_id, force_regenerate=True
+        )
 
     return {
         "id": evaluation.id,

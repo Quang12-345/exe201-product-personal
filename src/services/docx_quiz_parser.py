@@ -34,15 +34,16 @@ def parse_docx_quiz(file_stream: Any, default_title: str = "Đề thi trắc ngh
         if not p_text:
             continue
 
+        is_option_marker = bool(re.match(r"^\*?\s*[A-D]\s*[\.\):]", p_text, re.IGNORECASE))
+        is_question_marker = bool(re.match(r"^(Câu\s*hỏi|Câu|Question|Bài|\d+)", p_text, re.IGNORECASE))
         if (
             detected_title is None
+            and not is_option_marker
+            and not is_question_marker
             and (
                 p.style.name.startswith("Heading")
-                or "ĐỀ" in p_text.upper()
-                or "KIỂM TRA" in p_text.upper()
-                or "THI" in p_text.upper()
+                or re.search(r"\b(ĐỀ\s*THI|BÀI\s*THI|BÀI\s*KIỂM\s*TRA|BỘ\s*ĐỀ|ĐỀ\s*SỐ|EXAM|QUIZ|TEST)\b", p_text, re.IGNORECASE)
             )
-            and not re.match(r"^(Câu|Question|Bài|\d+)", p_text, re.IGNORECASE)
         ):
             detected_title = p_text
 
