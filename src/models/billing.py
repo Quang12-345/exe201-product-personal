@@ -16,6 +16,10 @@ class VnPayPaymentCreateRequest(BaseModel):
         default=None,
         description="Đường dẫn frontend để quay lại sau khi thanh toán",
     )
+    origin: str | None = Field(
+        default=None,
+        description="Origin URL của client frontend để PayOS chuyển hướng chính xác",
+    )
 
 
 class VnPayPaymentCreateResponse(BaseModel):
@@ -35,3 +39,19 @@ class VnPayReconcileResponse(BaseModel):
     order_code: int
     status: Literal["paid", "pending"]
     message: str
+
+
+class PaymentReceiptResponse(BaseModel):
+    order_code: int
+    amount: int
+    currency: str = "VND"
+    provider: str
+    status: str
+    is_paid: bool
+    recipient_name: str
+    plan_name: str
+    transaction_time: str
+    transaction_ref: str
+    account_number: str
+    created_at: str | None = None
+    paid_at: str | None = None

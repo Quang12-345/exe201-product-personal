@@ -7,13 +7,22 @@ export async function getBillingStatus() {
 }
 
 export async function startProCheckout(returnTo) {
-  const payload = { plan_code: 'pro_monthly' }
-  if (returnTo) payload.return_to = returnTo
+  const payload = {
+    plan_code: 'pro_monthly',
+    return_to: returnTo,
+    origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+  }
   const { data } = await api.post(ENDPOINTS.vnpayCheckout, payload)
   return data
 }
 
 export async function reconcileProPayment(orderCode) {
   const { data } = await api.post(`${ENDPOINTS.vnpayReconcile}${encodeURIComponent(orderCode)}`)
+  return data
+}
+
+export async function getPaymentReceipt(orderCode) {
+  const endpoint = ENDPOINTS.paymentReceipt || '/api/v1/payments/receipt/'
+  const { data } = await api.get(`${endpoint}${encodeURIComponent(orderCode)}`)
   return data
 }

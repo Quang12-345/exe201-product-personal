@@ -111,11 +111,32 @@ async def get_billing_status(
 
     subscription = await _active_subscription(session, user_id)
     today = _now_vn().date()
+
+    # Tự động đối soát đơn hàng chưa hoàn tất trong 48h (ví dụ PayOS vừa chuyển khoản xong)
+    if subscription is None:
+        recent_pending_res = await session.execute(
+            select(PaymentTransaction)
+            .where(
+                PaymentTransaction.user_id == user_id,
+                PaymentTransaction.status == "pending",
+                PaymentTransaction.created_at >= _utc_now() - timedelta(days=2),
+            )
+            .order_by(PaymentTransaction.created_at.desc())
+            .limit(1)
+        )
+        recent_tx = recent_pending_res.scalar_one_or_none()
+        if recent_tx and recent_tx.provider == "payos":
+            try:
+                rec_status = await query_payos_and_reconcile(session, order_code=recent_tx.order_code)
+                if rec_status == "paid":
+                    subscription = await _active_subscription(session, user_id)
+            except Exception as exc:
+                logger.warning("Auto-reconcile PayOS failed during get_billing_status: %s", exc)
+
     pending_result = await session.execute(
         select(PaymentTransaction.order_code)
         .where(
             PaymentTransaction.user_id == user_id,
-            PaymentTransaction.provider == "vnpay",
             PaymentTransaction.status == "pending",
         )
         .order_by(PaymentTransaction.created_at.desc())
@@ -618,10 +639,40 @@ def vnpay_params_from_request(request: Request) -> dict[str, str]:
 # PAYOS GATEWAY INTEGRATION (VIETQR CHUYỂN KHOẢN TRỰC TIẾP TÀI KHOẢN CÁ NHÂN)
 # ==============================================================================
 
+def _payos_sort_obj_by_key(obj: dict) -> dict:
+    """Sắp xếp dict theo key bảng chữ cái."""
+    return {k: obj[k] for k in sorted(obj.keys())}
+
+
+def _payos_convert_obj_to_query_str(data: dict) -> str:
+    """Chuyển object data sang query string chuẩn HMAC-SHA256 theo tài liệu PayOS.
+    
+    Lưu ý: PayOS yêu cầu:
+    - Sắp xếp key theo bảng chữ cái.
+    - Không bỏ sót key có value là null (chuyển thành chuỗi rỗng: 'key=').
+    - Boolean chuyển thành 'true'/'false'.
+    - Array/list chuyển thành JSON string với các dict con cũng được sort.
+    """
+    import json
+    sorted_obj = _payos_sort_obj_by_key(data)
+    parts = []
+    for k, v in sorted_obj.items():
+        if v is None:
+            v_str = ""
+        elif isinstance(v, bool):
+            v_str = "true" if v else "false"
+        elif isinstance(v, list):
+            sorted_items = [_payos_sort_obj_by_key(x) if isinstance(x, dict) else x for x in v]
+            v_str = json.dumps(sorted_items, separators=(",", ":"), ensure_ascii=False)
+        else:
+            v_str = str(v)
+        parts.append(f"{k}={v_str}")
+    return "&".join(parts)
+
+
 def _payos_signature(data: dict, checksum_key: str) -> str:
-    """Tạo chữ ký HMAC-SHA256 cho PayOS từ dict các trường đã sort theo alphabet."""
-    sorted_items = sorted(data.items())
-    query_str = "&".join(f"{k}={v}" for k, v in sorted_items if v is not None and str(v).strip() != "")
+    """Tạo chữ ký HMAC-SHA256 cho PayOS."""
+    query_str = _payos_convert_obj_to_query_str(data)
     return hmac.new(
         checksum_key.strip().encode("utf-8"),
         query_str.encode("utf-8"),
@@ -631,10 +682,9 @@ def _payos_signature(data: dict, checksum_key: str) -> str:
 
 def verify_payos_webhook_signature(data_dict: dict, signature: str, checksum_key: str) -> bool:
     """Xác thực chữ ký HMAC-SHA256 webhook gửi từ PayOS."""
-    if not signature or not checksum_key:
+    if not signature or not checksum_key or not isinstance(data_dict, dict):
         return False
-    sorted_items = sorted(data_dict.items())
-    query_str = "&".join(f"{k}={v}" for k, v in sorted_items if v is not None and str(v).strip() != "")
+    query_str = _payos_convert_obj_to_query_str(data_dict)
     expected = hmac.new(
         checksum_key.strip().encode("utf-8"),
         query_str.encode("utf-8"),
@@ -648,6 +698,7 @@ async def create_payos_checkout(
     *,
     user,
     return_to: str | None = None,
+    client_origin: str | None = None,
 ) -> dict[str, str | int]:
     """Tạo link thanh toán VietQR động qua PayOS chuyển thẳng vào STK cá nhân."""
     settings = get_settings()
@@ -664,11 +715,18 @@ async def create_payos_checkout(
     # Mã đơn hàng số nguyên an toàn trong JavaScript (dưới 9007199254740991)
     order_code = int(time.time() * 1000) % 9_000_000_000_000_000
 
-    frontend_base = (settings.frontend_url or "http://localhost:5173").strip().rstrip("/")
+    # Ưu tiên client_origin từ browser người dùng nếu không phải localhost (hoặc fallback sang settings)
+    frontend_base = (
+        client_origin
+        if (client_origin and not any(h in client_origin for h in ["localhost", "127.0.0.1"]))
+        else (settings.frontend_url or client_origin or "http://localhost:5173")
+    ).strip().rstrip("/")
+
     return_path = return_to if (return_to and return_to.startswith("/student/")) else "/student/chat"
-    sep = "&" if "?" in return_path else "?"
-    return_url = f"{frontend_base}{return_path}{sep}payment=success&order_code={order_code}"
-    cancel_url = f"{frontend_base}{return_path}{sep}payment=cancel&order_code={order_code}"
+    
+    # Hướng dẫn PayOS chuyển hướng về trang biên nhận & kích hoạt Pro
+    return_url = f"{frontend_base}/student/payment/success?order_code={order_code}&return_to={return_path}"
+    cancel_url = f"{frontend_base}/student/payment/cancel?order_code={order_code}&return_to={return_path}"
 
     # PayOS description tối đa 25 ký tự không dấu/kèm mã đơn
     description = f"Pro {order_code}"[-25:]
@@ -784,10 +842,13 @@ async def query_payos_and_reconcile(
 
     if status == "PAID" or amount_paid >= payment.amount:
         if payment.status != "paid":
+            transactions = data.get("transactions") or []
+            tx0 = transactions[0] if (isinstance(transactions, list) and len(transactions) > 0) else {}
+            tx_ref = str(tx0.get("reference") or data.get("id") or "")
             await _complete_payment(
                 session,
                 payment,
-                transaction_ref=str(data.get("id") or ""),
+                transaction_ref=tx_ref,
                 verification_data={"source": "payos_query", **data},
             )
         return "paid"
@@ -827,11 +888,62 @@ async def process_payos_webhook(session: AsyncSession, payload: dict) -> dict:
 
     # Mã code thành công của PayOS
     if str(payload.get("code")) == "00" or str(data.get("code")) == "00":
+        transactions = data.get("transactions") or []
+        tx0 = transactions[0] if (isinstance(transactions, list) and len(transactions) > 0) else {}
+        tx_ref = str(tx0.get("reference") or data.get("reference") or data.get("paymentLinkId") or "")
         await _complete_payment(
             session,
             payment,
-            transaction_ref=str(data.get("reference") or data.get("paymentLinkId") or ""),
+            transaction_ref=tx_ref,
             verification_data=payload,
         )
 
     return {"code": "00", "desc": "success"}
+
+
+async def get_payment_receipt(
+    session: AsyncSession,
+    *,
+    order_code: int,
+) -> dict:
+    """Lấy thông tin chi tiết biên nhận thanh toán (Receipt) để hiển thị cho người dùng."""
+    stmt = select(PaymentTransaction).where(PaymentTransaction.order_code == order_code)
+    result = await session.execute(stmt)
+    payment = result.scalar_one_or_none()
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn thanh toán.")
+
+    # Nếu vẫn đang pending và là PayOS, thực hiện đối soát tự động ngay
+    if payment.status == "pending" and payment.provider == "payos":
+        await query_payos_and_reconcile(session, order_code=order_code)
+        await session.refresh(payment)
+
+    raw = payment.raw_webhook or {}
+    payos_data = raw.get("payos_data") or (raw if raw.get("transactions") else {})
+    transactions = payos_data.get("transactions") or []
+    tx0 = transactions[0] if (isinstance(transactions, list) and len(transactions) > 0) else {}
+
+    # Thời gian giao dịch ngân hàng
+    tx_time_str = (
+        tx0.get("transactionDateTime")
+        or (payment.paid_at.strftime("%H:%M:%S - %d/%m/%Y") if payment.paid_at else None)
+        or payment.created_at.strftime("%H:%M:%S - %d/%m/%Y")
+    )
+    account_number = tx0.get("accountNumber") or payos_data.get("accountNumber") or "Tài khoản PayOS"
+    ref_code = payment.transaction_ref or tx0.get("reference") or payos_data.get("reference") or str(payment.order_code)
+
+    return {
+        "order_code": payment.order_code,
+        "amount": payment.amount,
+        "currency": payment.currency,
+        "provider": payment.provider,
+        "status": payment.status,
+        "is_paid": payment.status == "paid",
+        "recipient_name": "STUDYMIND - Nền Tảng Học Tập AI",
+        "plan_name": "Gói Pro Sinh Viên (30 ngày)",
+        "transaction_time": tx_time_str,
+        "transaction_ref": ref_code,
+        "account_number": account_number,
+        "created_at": payment.created_at.isoformat() if payment.created_at else None,
+        "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
+    }

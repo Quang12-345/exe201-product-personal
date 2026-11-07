@@ -243,16 +243,18 @@ function ChatPage() {
     }
   }
 
-  const paymentResult = new URLSearchParams(window.location.search).get('payment')
-  const paymentOrderCode = new URLSearchParams(window.location.search).get('order_code') || billing?.pending_order_code
+  const searchObj = new URLSearchParams(window.location.search)
+  const paymentResult = searchObj.get('payment') || (searchObj.get('status') === 'PAID' ? 'success' : null)
+  const paymentOrderCode = searchObj.get('order_code') || searchObj.get('orderCode') || billing?.pending_order_code
   const canAsk = !billing || billing.daily_limit == null || billing.remaining_today > 0
 
   const checkPayment = async () => {
-    if (!paymentOrderCode || paymentCheckBusy) return
+    const code = paymentOrderCode || searchObj.get('order_code') || searchObj.get('orderCode') || billing?.pending_order_code
+    if (!code || paymentCheckBusy) return
     setPaymentCheckError('')
     setPaymentCheckBusy(true)
     try {
-      const result = await reconcileProPayment(paymentOrderCode)
+      const result = await reconcileProPayment(code)
       setPaymentCheckStatus(result.status)
       if (result.status === 'paid') setBilling(await getBillingStatus())
     } catch (error) {
@@ -264,10 +266,23 @@ function ChatPage() {
   }
 
   useEffect(() => {
-    if (paymentResult === 'success') {
-      getBillingStatus().then(setBilling).catch(() => {})
+    const code = searchObj.get('order_code') || searchObj.get('orderCode') || billing?.pending_order_code
+    if (paymentResult === 'success' || code) {
+      if (code) {
+        reconcileProPayment(code)
+          .then((res) => {
+            if (res?.status === 'paid') {
+              getBillingStatus().then(setBilling).catch(() => {})
+            }
+          })
+          .catch(() => {
+            getBillingStatus().then(setBilling).catch(() => {})
+          })
+      } else {
+        getBillingStatus().then(setBilling).catch(() => {})
+      }
     }
-  }, [paymentResult])
+  }, [paymentResult, billing?.pending_order_code])
 
   useEffect(() => {
     if (paymentResult !== 'pending') return undefined

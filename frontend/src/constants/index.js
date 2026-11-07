@@ -15,12 +15,12 @@ export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 // Khớp với FastAPI: prefix /api/v1 cho nghiệp vụ, /health cho health-check.
 export const ENDPOINTS = {
   // Auth
-    login: '/api/v1/auth/login',
-    gmailLogin: '/api/v1/auth/gmail-login',
-    register: '/api/v1/auth/register',
-    registerVerify: '/api/v1/auth/register/verify',
-    registerResendOtp: '/api/v1/auth/register/resend-otp',
-    forgotPassword: '/api/v1/auth/forgot-password',
+  login: '/api/v1/auth/login',
+  gmailLogin: '/api/v1/auth/gmail-login',
+  register: '/api/v1/auth/register',
+  registerVerify: '/api/v1/auth/register/verify',
+  registerResendOtp: '/api/v1/auth/register/resend-otp',
+  forgotPassword: '/api/v1/auth/forgot-password',
   verifyOtp: '/api/v1/auth/verify-otp',
   resetPassword: '/api/v1/auth/reset-password',
   // Chat RAG
@@ -29,6 +29,7 @@ export const ENDPOINTS = {
   billingMe: '/api/v1/billing/me',
   vnpayCheckout: '/api/v1/payments/vnpay/create',
   vnpayReconcile: '/api/v1/payments/vnpay/reconcile/',
+  paymentReceipt: '/api/v1/payments/receipt/',
   // Lịch sử hội thoại
   conversations: '/api/v1/conversations',
   // Thống kê realtime

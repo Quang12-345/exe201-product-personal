@@ -53,8 +53,8 @@ export default function StudyPage() {
   const [billingLoading, setBillingLoading] = useState(true)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
 
-  const paymentResult = searchParams.get('payment')
-  const paymentOrderCode = searchParams.get('order_code') || billing?.pending_order_code
+  const paymentResult = searchParams.get('payment') || (searchParams.get('status') === 'PAID' ? 'success' : null)
+  const paymentOrderCode = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
   const [paymentCheckBusy, setPaymentCheckBusy] = useState(false)
   const [paymentCheckStatus, setPaymentCheckStatus] = useState(null)
   const [paymentCheckError, setPaymentCheckError] = useState('')
@@ -97,8 +97,21 @@ export default function StudyPage() {
   }
 
   useEffect(() => {
-    if (paymentResult === 'success') {
-      getBillingStatus().then(setBilling).catch(() => {})
+    const code = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
+    if (paymentResult === 'success' || code) {
+      if (code) {
+        reconcileProPayment(code)
+          .then((res) => {
+            if (res?.status === 'paid') {
+              getBillingStatus().then(setBilling).catch(() => {})
+            }
+          })
+          .catch(() => {
+            getBillingStatus().then(setBilling).catch(() => {})
+          })
+      } else {
+        getBillingStatus().then(setBilling).catch(() => {})
+      }
     }
     if (paymentResult !== 'pending') return undefined
     let attempts = 0

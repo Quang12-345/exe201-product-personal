@@ -152,6 +152,7 @@ from src.models import (
     VerifyOtpResponse,
 )
 from src.models.billing import (
+    PaymentReceiptResponse,
     VnPayPaymentCreateRequest,
     VnPayPaymentCreateResponse,
     VnPayReconcileResponse,
@@ -167,6 +168,7 @@ from src.services.billing import (
     create_payos_checkout,
     create_vnpay_checkout,
     get_billing_status,
+    get_payment_receipt,
     process_payos_webhook,
     process_vnpay_ipn,
     query_payos_and_reconcile,
@@ -894,12 +896,20 @@ async def vnpay_checkout(
     from src.config import get_settings
     settings = get_settings()
 
+    client_origin = payload.origin or request.headers.get("origin") or request.headers.get("referer")
+    if client_origin:
+        from urllib.parse import urlparse
+        p = urlparse(client_origin)
+        if p.scheme and p.netloc:
+            client_origin = f"{p.scheme}://{p.netloc}"
+
     # Nếu đã cấu hình PayOS (ưu tiên nhận tiền qua STK cá nhân VietQR)
     if settings.payos_client_id and settings.payos_api_key and settings.payos_checksum_key:
         result = await create_payos_checkout(
             session,
             user=user,
             return_to=payload.return_to,
+            client_origin=client_origin,
         )
         return VnPayPaymentCreateResponse(**result)
 
@@ -913,6 +923,33 @@ async def vnpay_checkout(
     return VnPayPaymentCreateResponse(**result)
 
 
+@router.get(
+    "/payments/receipt/{order_code}",
+    response_model=PaymentReceiptResponse,
+    tags=["payments"],
+    summary="Get payment receipt details",
+    description="Lấy thông tin chi tiết biên nhận chuyển khoản (số tiền, người nhận, thời gian, trạng thái Pro).",
+)
+async def payment_receipt(
+    order_code: int,
+    session: AsyncSession = Depends(get_db),
+) -> PaymentReceiptResponse:
+    data = await get_payment_receipt(session, order_code=order_code)
+    return PaymentReceiptResponse(**data)
+
+
+@router.post(
+    "/payments/payos/reconcile/{order_code}",
+    response_model=VnPayReconcileResponse,
+    tags=["payments"],
+    include_in_schema=False,
+)
+@router.post(
+    "/payments/reconcile/{order_code}",
+    response_model=VnPayReconcileResponse,
+    tags=["payments"],
+    include_in_schema=False,
+)
 @router.post(
     "/payments/vnpay/reconcile/{order_code}",
     response_model=VnPayReconcileResponse,
