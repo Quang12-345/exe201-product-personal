@@ -85,6 +85,7 @@ from src.api.controllers.study_aid_controller import (
     generate_attempt_evaluation_controller,
     get_attempt_evaluation_controller,
     list_my_evaluations_controller,
+    get_attempt_review_controller,
 )
 from src.api.controllers.user_controller import (
     build_user_response,
@@ -171,6 +172,7 @@ __all__ = [
     "generate_attempt_evaluation_controller",
     "get_attempt_evaluation_controller",
     "list_my_evaluations_controller",
+    "get_attempt_review_controller",
     "add_student_to_classroom_controller",
     "create_classroom_controller",
     "delete_classroom_controller",
