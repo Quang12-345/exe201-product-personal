@@ -6,6 +6,7 @@ import {
   generateQuiz,
   deleteQuiz,
 } from '../services/studyService'
+import LearningEvaluationCard from './LearningEvaluationCard.jsx'
 import { notify } from '../../../components/common/toast.jsx'
 
 export default function QuizPlayer({
@@ -342,6 +343,13 @@ export default function QuizPlayer({
             🔄 Làm lại bài thi
           </button>
         </div>
+      )}
+
+      {submissionResult && submissionResult.attempt_id && (
+        <LearningEvaluationCard
+          attemptId={submissionResult.attempt_id}
+          onRetake={handleRetake}
+        />
       )}
 
       {/* Danh sách câu hỏi */}

@@ -6,7 +6,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.db.models import Classroom, Document, Flashcard, Quiz, QuizQuestion, User, UserQuizAttempt
+from src.db.models import Classroom, Document, Flashcard, LearningEvaluation, Quiz, QuizQuestion, User, UserQuizAttempt
 
 # ---------------- Flashcard Operations ----------------
 
@@ -266,4 +266,67 @@ async def list_recent_submissions(
             }
         )
     return items
+
+# ---------------- Learning Evaluation Operations ----------------
+
+
+async def create_learning_evaluation(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    quiz_id: str,
+    attempt_id: str | None,
+    score: float,
+    competency_level: str,
+    summary: str,
+    strengths: list[dict[str, Any]],
+    weaknesses: list[dict[str, Any]],
+    roadmap: list[dict[str, Any]],
+) -> LearningEvaluation:
+    evaluation = LearningEvaluation(
+        user_id=user_id,
+        quiz_id=quiz_id,
+        attempt_id=attempt_id,
+        score=score,
+        competency_level=competency_level,
+        summary=summary,
+        strengths=strengths,
+        weaknesses=weaknesses,
+        roadmap=roadmap,
+    )
+    session.add(evaluation)
+    await session.flush()
+    return evaluation
+
+
+async def get_learning_evaluation(
+    session: AsyncSession, evaluation_id: str
+) -> LearningEvaluation | None:
+    result = await session.execute(
+        select(LearningEvaluation).where(LearningEvaluation.id == evaluation_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_evaluation_by_attempt(
+    session: AsyncSession, attempt_id: str
+) -> LearningEvaluation | None:
+    result = await session.execute(
+        select(LearningEvaluation)
+        .where(LearningEvaluation.attempt_id == attempt_id)
+        .order_by(LearningEvaluation.created_at.desc())
+    )
+    return result.scalars().first()
+
+
+async def list_evaluations_by_student(
+    session: AsyncSession, student_id: str, limit: int = 10
+) -> list[LearningEvaluation]:
+    result = await session.execute(
+        select(LearningEvaluation)
+        .where(LearningEvaluation.user_id == student_id)
+        .order_by(LearningEvaluation.created_at.desc())
+        .limit(limit)
+    )
+    return list(result.scalars().all())
 

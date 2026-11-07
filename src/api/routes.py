@@ -77,6 +77,9 @@ from src.api.controllers import (
     stats_overview_controller,
     submit_feedback_controller,
     submit_quiz_controller,
+    generate_attempt_evaluation_controller,
+    get_attempt_evaluation_controller,
+    list_my_evaluations_controller,
     submit_signal_controller,
     suggest_metadata_controller,
     update_classroom_controller,
@@ -127,6 +130,7 @@ from src.models import (
     QuizSubmitResponse,
     QuizSummary,
     RecentSubmissionItem,
+    LearningEvaluationResponse,
     RenameConversationRequest,
     ResetPasswordRequest,
     ResetPasswordResponse,
@@ -1375,4 +1379,45 @@ async def list_recent_submissions(
     user=Depends(get_current_user),
 ) -> list[RecentSubmissionItem]:
     return await list_recent_submissions_controller(session, user, limit=limit)
+
+@router.post(
+    "/study-aids/quiz-attempts/{attempt_id}/evaluation",
+    response_model=LearningEvaluationResponse,
+    tags=["study-aid"],
+    summary="Generate AI competency evaluation, strengths, weaknesses and personalized roadmap",
+)
+async def generate_attempt_evaluation(
+    attempt_id: str,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+) -> LearningEvaluationResponse:
+    return await generate_attempt_evaluation_controller(session, user, attempt_id)
+
+
+@router.get(
+    "/study-aids/quiz-attempts/{attempt_id}/evaluation",
+    response_model=LearningEvaluationResponse,
+    tags=["study-aid"],
+    summary="Get AI evaluation for a quiz attempt",
+)
+async def get_attempt_evaluation(
+    attempt_id: str,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+) -> LearningEvaluationResponse:
+    return await get_attempt_evaluation_controller(session, user, attempt_id)
+
+
+@router.get(
+    "/study-aids/my-evaluations",
+    response_model=list[LearningEvaluationResponse],
+    tags=["study-aid"],
+    summary="List recent learning evaluations of current student",
+)
+async def list_my_evaluations(
+    limit: int = 10,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+) -> list[LearningEvaluationResponse]:
+    return await list_my_evaluations_controller(session, user, limit=limit)
 

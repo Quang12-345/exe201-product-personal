@@ -74,3 +74,21 @@ export async function fetchMyQuizAttempts() {
   const { data } = await api.get(ENDPOINTS.myQuizAttempts)
   return data || []
 }
+
+
+export async function generateLearningEvaluation(attemptId) {
+  const { data } = await api.post(`/api/v1/study-aids/quiz-attempts/${attemptId}/evaluation`)
+  return data
+}
+
+export async function fetchAttemptEvaluation(attemptId) {
+  const { data } = await api.get(`/api/v1/study-aids/quiz-attempts/${attemptId}/evaluation`)
+  return data
+}
+
+export async function fetchMyEvaluations(limit = 10) {
+  const { data } = await api.get(`/api/v1/study-aids/my-evaluations`, {
+    params: { limit, _t: Date.now() },
+  })
+  return data || []
+}

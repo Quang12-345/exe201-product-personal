@@ -68,8 +68,8 @@ def parse_docx_quiz(file_stream: Any, default_title: str = "Đề thi trắc ngh
         })
 
     # Regex patterns
-    q_pattern = re.compile(r"^(Câu|Question|Bài)?\s*(\d+)[\s.:-]+(.*)$", re.IGNORECASE)
-    opt_start_pattern = re.compile(r"(\*?\s*[A-D]\s*[\.\):])\s*", re.IGNORECASE)
+    q_pattern = re.compile(r"^(Câu\s*hỏi|Câu|Question|Bài)?\s*(\d+)[\s.:-]*(.*)$", re.IGNORECASE)
+    opt_first_pattern = re.compile(r"^\s*(\*?\s*[A-D]\s*[\.\):])\s*(.*)$", re.IGNORECASE)
     ans_line_pattern = re.compile(r"^(Đáp án|ĐÁP ÁN|Answer|Key)[\s.:-]+([A-D])", re.IGNORECASE)
     exp_pattern = re.compile(r"^(Lời giải|Giải thích|Hướng dẫn giải|Hướng dẫn|HD|Explanation)[\s.:-]+(.*)$", re.IGNORECASE)
     bottom_ans_pattern = re.compile(r"(\d+)[\s.:-]+([A-D])", re.IGNORECASE)
@@ -135,8 +135,8 @@ def parse_docx_quiz(file_stream: Any, default_title: str = "Đề thi trắc ngh
             continue
 
         # Kiểm tra Bắt đầu câu hỏi mới
+        is_option_line = bool(opt_first_pattern.match(text))
         q_match = q_pattern.match(text)
-        is_option_line = bool(opt_start_pattern.match(text))
 
         if q_match and not is_option_line and (q_match.group(1) or int(q_match.group(2)) == len(questions) + 1):
             finish_current_question()
@@ -144,7 +144,7 @@ def parse_docx_quiz(file_stream: Any, default_title: str = "Đề thi trắc ngh
             q_body = q_match.group(3).strip()
             current_q = {
                 "num": q_num,
-                "question_text": q_body or text,
+                "question_text": q_body,
                 "options": [],
                 "options_raw": [],
                 "correct_answer": None,
@@ -155,17 +155,26 @@ def parse_docx_quiz(file_stream: Any, default_title: str = "Đề thi trắc ngh
 
         # Kiểm tra các phương án A, B, C, D
         if current_q is not None:
-            split_indices = []
-            for m in re.finditer(r"(?:^|[\s\t]+)(\*?\s*[A-D]\s*[\.\):])\s*", text, re.IGNORECASE):
-                split_indices.append((m.start(1), m.end(), m.group(1).strip()))
+            if is_option_line:
+                raw_matches = list(re.finditer(r"(?:^|[\t]| {2,}|;\s*)(\*?\s*[A-D]\s*[\.\):])\s*", text, re.IGNORECASE))
+                valid_options = []
+                prev_letter = None
+                for m in raw_matches:
+                    marker = m.group(1).strip()
+                    clean = marker.replace("*", "").strip()
+                    letter = clean[0].upper()
+                    if prev_letter is None:
+                        valid_options.append((m.start(1), m.end(), marker, letter))
+                        prev_letter = letter
+                    else:
+                        if ord(letter) == ord(prev_letter) + 1:
+                            valid_options.append((m.start(1), m.end(), marker, letter))
+                            prev_letter = letter
 
-            if split_indices:
-                for i in range(len(split_indices)):
-                    start_idx, end_idx, marker = split_indices[i]
-                    next_start = split_indices[i + 1][0] if i + 1 < len(split_indices) else len(text)
+                for i in range(len(valid_options)):
+                    start_idx, end_idx, marker, letter = valid_options[i]
+                    next_start = valid_options[i + 1][0] if i + 1 < len(valid_options) else len(text)
                     opt_val = text[end_idx:next_start].strip()
-                    clean_marker = marker.replace("*", "").strip()
-                    letter = clean_marker[0].upper()
 
                     is_correct = False
                     if "*" in marker:
@@ -188,7 +197,10 @@ def parse_docx_quiz(file_stream: Any, default_title: str = "Đề thi trắc ngh
 
             # Nếu là dòng tiếp nối của câu hỏi
             if not current_q["options"]:
-                current_q["question_text"] += "\n" + text
+                if not current_q["question_text"]:
+                    current_q["question_text"] = text
+                else:
+                    current_q["question_text"] += "\n" + text
             elif current_q["options"]:
                 # Là nội dung tiếp nối của lời giải
                 if not current_q["explanation"]:

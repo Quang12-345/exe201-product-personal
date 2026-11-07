@@ -15,7 +15,7 @@ import {
   ArchiveIcon,
   CalendarIcon,
 } from '../../../components/common/icons.jsx'
-import { fetchAvailableDocuments, fetchMyQuizAttempts } from '../services/studyService.js'
+import { fetchAvailableDocuments, fetchMyQuizAttempts, fetchMyEvaluations } from '../services/studyService.js'
 import { listConversations } from '../../../services/conversationsApi.js'
 import { getEnrolledClassrooms, joinClassroom } from '../services/classroomService.js'
 import { getStudentExams, formatExamDate } from '../services/examService.js'
@@ -55,6 +55,7 @@ function StudentDashboardPage() {
   const [conversations, setConversations] = useState([])
   const [classrooms, setClassrooms] = useState([])
   const [exams, setExams] = useState([])
+  const [evaluations, setEvaluations] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Modal tham gia lớp học ngay trên Dashboard
@@ -83,13 +84,15 @@ function StudentDashboardPage() {
       listConversations().catch(() => []),
       getEnrolledClassrooms().catch(() => []),
       getStudentExams().catch(() => []),
-    ]).then(([docs, myAttempts, convs, enrolledClasses, examList]) => {
+      fetchMyEvaluations().catch(() => []),
+    ]).then(([docs, myAttempts, convs, enrolledClasses, examList, evalList]) => {
       if (active) {
         setDocuments(docs || [])
         setAttempts(myAttempts || [])
         setConversations(convs || [])
         setClassrooms(enrolledClasses || [])
         setExams(examList || [])
+        setEvaluations(evalList || [])
         setLoading(false)
       }
     })
@@ -564,6 +567,178 @@ function StudentDashboardPage() {
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      {/* Phần: Đánh giá năng lực & Lộ trình học tập AI (Adaptive Learning) */}
+      <section className="st-section">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 22 }}>🎯</span>
+            <h2 className="st-section-heading" style={{ margin: 0 }}>
+              Hồ Sơ Năng Lực & Lộ Trình Ôn Tập AI
+            </h2>
+            <span style={{ fontSize: 11, fontWeight: 800, backgroundColor: '#000000', color: '#ffffff', padding: '2px 8px', borderRadius: 12 }}>
+              ADAPTIVE
+            </span>
+          </div>
+
+          <Link
+            to="/student/exams"
+            style={{ fontSize: 13, fontWeight: 800, color: '#000000', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            Làm bài kiểm tra mới <ArrowRightIcon size={14} />
+          </Link>
+        </div>
+
+        {evaluations.length === 0 ? (
+          <div
+            style={{
+              backgroundColor: '#f8fafc',
+              border: '2px dashed #cbd5e1',
+              borderRadius: 14,
+              padding: '24px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>
+              <h4 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 800, color: '#0f172a' }}>
+                Chưa có báo cáo phân tích năng lực
+              </h4>
+              <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>
+                Hãy hoàn thành một bài thi trắc nghiệm để AI tự động phát hiện điểm mạnh, điểm yếu và gợi ý lộ trình học tập cho bạn.
+              </p>
+            </div>
+            <Link
+              to="/student/exams"
+              className="dmrs-btn dmrs-btn--primary"
+              style={{ textDecoration: 'none', padding: '8px 18px', fontSize: 13, fontWeight: 800 }}
+            >
+              Vào phòng thi ngay →
+            </Link>
+          </div>
+        ) : (
+          (() => {
+            const latestEval = evaluations[0]
+            const levelColors = {
+              'Xuất sắc': { bg: '#dcfce7', text: '#15803d', border: '#86efac' },
+              'Khá Giỏi': { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
+              'Đạt yêu cầu': { bg: '#fef3c7', text: '#b45309', border: '#fcd34d' },
+            }[latestEval.competency_level] || { bg: '#fee2e2', text: '#b91c1c', border: '#fca5a5' }
+
+            return (
+              <div
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '2px solid #000000',
+                  borderRadius: 14,
+                  boxShadow: '3.5px 3.5px 0px #000000',
+                  padding: '20px 24px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span
+                      style={{
+                        backgroundColor: levelColors.bg,
+                        color: levelColors.text,
+                        border: `1.5px solid ${levelColors.border}`,
+                        padding: '4px 12px',
+                        borderRadius: 20,
+                        fontWeight: 800,
+                        fontSize: 13,
+                      }}
+                    >
+                      Mức năng lực: {latestEval.competency_level}
+                    </span>
+                    <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>
+                      Điểm gần nhất: <strong>{latestEval.score}/10</strong>
+                    </span>
+                  </div>
+
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                    {formatRelativeTime(latestEval.created_at)}
+                  </span>
+                </div>
+
+                {latestEval.summary && (
+                  <p style={{ margin: '0 0 16px', fontSize: 13.5, color: '#334155', lineHeight: 1.55 }}>
+                    {latestEval.summary}
+                  </p>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+                  {/* Điểm mạnh */}
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px' }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#166534', marginBottom: 6 }}>
+                      🌟 Điểm mạnh nổi bật
+                    </div>
+                    {latestEval.strengths && latestEval.strengths.length > 0 ? (
+                      <div style={{ fontSize: 12.5, color: '#374151', lineHeight: 1.45 }}>
+                        {latestEval.strengths[0].topic}: {latestEval.strengths[0].description}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#65a30d' }}>Đang ghi nhận dữ liệu...</div>
+                    )}
+                  </div>
+
+                  {/* Lỗ hổng cần ôn */}
+                  <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px' }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#92400e', marginBottom: 6 }}>
+                      ⚠️ Lỗ hổng cần ôn tập
+                    </div>
+                    {latestEval.weaknesses && latestEval.weaknesses.length > 0 ? (
+                      <div style={{ fontSize: 12.5, color: '#4b5563', lineHeight: 1.45 }}>
+                        <strong>{latestEval.weaknesses[0].topic}:</strong> {latestEval.weaknesses[0].issue}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>Không có lỗ hổng lớn!</div>
+                    )}
+                  </div>
+
+                  {/* Bước tiếp theo trong lộ trình */}
+                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '12px 16px' }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, color: '#1e40af', marginBottom: 6 }}>
+                      🗺️ Kế hoạch hành động tiếp theo
+                    </div>
+                    {latestEval.roadmap && latestEval.roadmap.length > 0 ? (
+                      <div>
+                        <div style={{ fontSize: 12.5, color: '#1e3a8a', fontWeight: 700, marginBottom: 4 }}>
+                          Bước 1: {latestEval.roadmap[0].title}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>
+                          {latestEval.roadmap[0].description}
+                        </div>
+                        {latestEval.roadmap[0].document_id && (
+                          <Link
+                            to={`/student/study/${latestEval.roadmap[0].document_id}?tab=flashcards`}
+                            style={{
+                              fontSize: 11.5,
+                              fontWeight: 800,
+                              color: '#ffffff',
+                              backgroundColor: '#2563eb',
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              textDecoration: 'none',
+                              display: 'inline-block',
+                            }}
+                          >
+                            Bắt đầu ôn tập ngay →
+                          </Link>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#64748b' }}>Đang đồng bộ lộ trình...</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()
         )}
       </section>
 

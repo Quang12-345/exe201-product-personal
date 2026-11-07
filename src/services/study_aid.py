@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Document, DocumentChunk, Flashcard, Quiz
+from src.db.models import Document, DocumentChunk, Flashcard, LearningEvaluation, Quiz, UserQuizAttempt
 from src.repositories import document_repo, study_aid_repo
 from src.services.llm import get_llm
 
@@ -263,3 +263,325 @@ async def evaluate_quiz_submission(
         "completed_at": attempt.completed_at,
         "details": details,
     }
+
+EVALUATION_PROMPT = """Bạn là chuyên gia cố vấn học tập AI và đánh giá năng lực giáo dục (Adaptive Learning & Competency Evaluation).
+Dưới đây là kết quả làm bài trắc nghiệm của sinh viên:
+- Tiêu đề đề thi / bài tập: {quiz_title}
+- Môn học / Tài liệu liên quan: {document_title}
+- Điểm số: {score}/10 (Đúng {correct_count}/{total_questions} câu)
+
+DANH SÁCH CHI TIẾT TỪNG CÂU HỎI VÀ KẾT QUẢ:
+{questions_summary}
+
+NHIỆM VỤ CỦA BẠN:
+Hãy phân tích sâu bài làm của sinh viên để đánh giá năng lực, xác định điểm mạnh, điểm yếu cốt lõi và vạch ra lộ trình học tập cá nhân hóa 3-4 bước nhằm khắc phục lỗ hổng kiến thức.
+
+YÊU CẦU ĐẦU RA:
+BẮT BUỘC là một JSON Object hợp lệ duy nhất, theo cấu trúc:
+{{
+  "competency_level": "Xuất sắc" hoặc "Khá Giỏi" hoặc "Đạt yêu cầu" hoặc "Cần củng cố",
+  "summary": "Đoạn văn 2-3 câu nhận xét tổng quan năng lực sinh viên, thái độ học tập và mức độ thông hiểu bản chất môn học.",
+  "strengths": [
+    {{
+      "topic": "Tên chủ đề / khái niệm làm tốt",
+      "description": "Mô tả ngắn gọn sinh viên đã nắm chắc phần này như thế nào căn cứ vào các câu trả lời đúng."
+    }}
+  ],
+  "weaknesses": [
+    {{
+      "topic": "Tên chủ đề / khái niệm bị hổng hoặc nhầm lẫn",
+      "issue": "Chỉ rõ sinh viên nhầm lẫn ở điểm nào, tại sao chọn sai phương án",
+      "advice": "Lời khuyên sư phạm ngắn gọn để ghi nhớ đúng",
+      "failed_questions": [1, 3]
+    }}
+  ],
+  "roadmap": [
+    {{
+      "step": 1,
+      "title": "Tiêu đề bước (VD: Đọc lại lý thuyết về...)",
+      "description": "Nội dung cần ôn tập chi tiết, chỉ rõ tài liệu hoặc phần cần xem lại",
+      "action_type": "read",
+      "document_title": "{document_title}"
+    }},
+    {{
+      "step": 2,
+      "title": "Luyện tập củng cố với Flashcards",
+      "description": "Luyện tập các thẻ ghi nhớ thuật ngữ trọng tâm để khắc sâu kiến thức",
+      "action_type": "flashcard",
+      "document_title": "{document_title}"
+    }},
+    {{
+      "step": 3,
+      "title": "Làm lại bài kiểm tra ngắn khắc phục điểm yếu",
+      "description": "Làm bài kiểm tra bù 3-5 câu để kiểm tra lại các phần vừa ôn",
+      "action_type": "quiz",
+      "document_title": "{document_title}"
+    }}
+  ]
+}}
+TUYỆT ĐỐI không thêm bất kỳ văn bản, ghi chú hay markdown nào ngoài JSON này.
+"""
+
+
+def _generate_fallback_evaluation(
+    *,
+    quiz_title: str,
+    document_title: str,
+    score: float,
+    correct_count: int,
+    total_questions: int,
+    details: list[dict[str, Any]],
+    document_id: str | None = None,
+) -> dict[str, Any]:
+    """Tạo bản đánh giá quy tắc dự phòng khi LLM không khả dụng hoặc lỗi."""
+    failed_items = [d for d in details if not d["is_correct"]]
+    correct_items = [d for d in details if d["is_correct"]]
+
+    if score >= 8.5:
+        level = "Xuất sắc"
+        summary = f"Sinh viên thể hiện sự hiểu biết sâu sắc và toàn diện về bài học '{quiz_title}'. Khả năng phân tích và ghi nhớ kiến thức rất tốt, đạt điểm số ấn tượng {score}/10."
+    elif score >= 7.0:
+        level = "Khá Giỏi"
+        summary = f"Sinh viên nắm vững đa số các kiến thức nền tảng của bài học '{quiz_title}' (đạt {score}/10). Tuy nhiên vẫn còn một vài điểm cần lưu ý để đạt mức độ xuất sắc."
+    elif score >= 5.0:
+        level = "Đạt yêu cầu"
+        summary = f"Sinh viên đã đạt chuẩn đầu ra tối thiểu ({score}/10) cho bài học '{quiz_title}', nhưng còn một số khoảng trống kiến thức quan trọng cần được ôn luyện bổ sung."
+    else:
+        level = "Cần củng cố"
+        summary = f"Kết quả bài kiểm tra '{quiz_title}' ({score}/10) cho thấy sinh viên chưa nắm chắc các nội dung cốt lõi. Cần nhanh chóng rà soát lại tài liệu và làm lại bài luyện tập."
+
+    # Xây dựng Điểm mạnh
+    strengths = []
+    if correct_items:
+        topics_sample = [d["question_text"][:40] + "..." for d in correct_items[:3]]
+        strengths.append({
+            "topic": "Nền tảng kiến thức trọng tâm",
+            "description": f"Trả lời chính xác {len(correct_items)}/{total_questions} câu hỏi, đặc biệt là các nội dung: {'; '.join(topics_sample)}",
+        })
+    else:
+        strengths.append({
+            "topic": "Tinh thần tự học & hoàn thành bài thi",
+            "description": "Đã kiên trì làm và hoàn thành bài kiểm tra, tạo cơ sở xác định đúng các phần kiến thức cần tập trung bổ sung.",
+        })
+
+    # Xây dựng Điểm yếu
+    weaknesses = []
+    if failed_items:
+        for idx, item in enumerate(failed_items[:3], start=1):
+            q_idx = item.get("question_index", idx)
+            weaknesses.append({
+                "topic": f"Kiến thức câu hỏi {q_idx}",
+                "issue": f"Chưa chọn đúng phương án câu: '{item['question_text'][:60]}...'",
+                "advice": item.get("explanation") or "Đọc lại phần giải thích và đối chiếu với giáo trình để hiểu rõ nguyên nhân chọn sai.",
+                "failed_questions": [q_idx],
+            })
+    else:
+        weaknesses.append({
+            "topic": "Duy trì phong độ",
+            "issue": "Không có lỗ hổng kiến thức rõ rệt trong bài thi này.",
+            "advice": "Tiếp tục thử sức với các bài thi nâng cao và đề tài mới.",
+            "failed_questions": [],
+        })
+
+    # Xây dựng Lộ trình
+    roadmap = [
+        {
+            "step": 1,
+            "title": f"Ôn tập lại giáo trình '{document_title}'",
+            "description": f"Đọc kỹ lại các chương lý thuyết liên quan đến {len(failed_items)} câu hỏi đã chọn sai.",
+            "action_type": "read",
+            "document_id": document_id,
+            "document_title": document_title,
+        },
+        {
+            "step": 2,
+            "title": "Ôn luyện thẻ ghi nhớ Flashcard",
+            "description": "Luyện tập các thuật ngữ và định nghĩa quan trọng bằng phương pháp Active Recall.",
+            "action_type": "flashcard",
+            "document_id": document_id,
+            "document_title": document_title,
+        },
+        {
+            "step": 3,
+            "title": "Làm lại bài kiểm tra bù kiến thức",
+            "description": "Thực hiện lại bài kiểm tra để tự đánh giá mức độ tiến bộ sau khi đã ôn tập.",
+            "action_type": "quiz",
+            "document_id": document_id,
+            "document_title": document_title,
+        },
+    ]
+
+    return {
+        "competency_level": level,
+        "summary": summary,
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "roadmap": roadmap,
+    }
+
+
+async def generate_learning_evaluation(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    student_id: str,
+) -> dict[str, Any]:
+    """Sinh đánh giá năng lực học tập, điểm mạnh/yếu và lộ trình từ lượt làm bài quiz."""
+    attempt = await session.get(UserQuizAttempt, attempt_id)
+    if not attempt or attempt.student_id != student_id:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài làm trắc nghiệm tương ứng.")
+
+    # Kiểm tra xem đã có đánh giá được tạo trước đó chưa
+    existing = await study_aid_repo.get_evaluation_by_attempt(session, attempt_id)
+    if existing:
+        return {
+            "id": existing.id,
+            "user_id": existing.user_id,
+            "quiz_id": existing.quiz_id,
+            "attempt_id": existing.attempt_id,
+            "score": existing.score,
+            "competency_level": existing.competency_level,
+            "summary": existing.summary,
+            "strengths": existing.strengths,
+            "weaknesses": existing.weaknesses,
+            "roadmap": existing.roadmap,
+            "created_at": existing.created_at,
+        }
+
+    quiz = await study_aid_repo.get_quiz(session, attempt.quiz_id, load_questions=True)
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài Quiz gốc.")
+
+    doc_title = quiz.title
+    document_id = quiz.document_id
+    if quiz.document_id:
+        doc = await document_repo.get_document(session, quiz.document_id)
+        if doc and doc.title:
+            doc_title = doc.title
+
+    user_answers = attempt.answers or {}
+    total_questions = len(quiz.questions)
+    correct_count = 0
+    details = []
+
+    lines_summary = []
+    for idx, q in enumerate(quiz.questions, start=1):
+        chosen = user_answers.get(q.id) or user_answers.get(str(q.id))
+        is_corr = _answers_match(chosen, q.correct_answer)
+        if is_corr:
+            correct_count += 1
+        details.append({
+            "question_index": idx,
+            "question_id": q.id,
+            "question_text": q.question_text,
+            "chosen_answer": chosen,
+            "correct_answer": q.correct_answer,
+            "is_correct": is_corr,
+            "explanation": q.explanation or "",
+        })
+        lines_summary.append(
+            f"Câu {idx}: {q.question_text}\n"
+            f"- Phương án sinh viên chọn: {chosen or 'Chưa trả lời'}\n"
+            f"- Đáp án đúng: {q.correct_answer}\n"
+            f"- Kết quả: {'ĐÚNG' if is_corr else 'SAI'}\n"
+            f"- Giải thích: {q.explanation or 'Không có'}"
+        )
+
+    questions_summary_str = "\n\n".join(lines_summary)
+
+    # Thử gọi LLM phân tích sâu
+    eval_data = None
+    try:
+        llm = get_llm(temperature=0.3)
+        prompt = EVALUATION_PROMPT.format(
+            quiz_title=quiz.title,
+            document_title=doc_title,
+            score=attempt.score,
+            correct_count=correct_count,
+            total_questions=total_questions,
+            questions_summary=questions_summary_str,
+        )
+        response = await llm.ainvoke([HumanMessage(content=prompt)])
+        parsed = _extract_json(response.content)
+        if isinstance(parsed, dict) and "strengths" in parsed and "weaknesses" in parsed:
+            eval_data = parsed
+    except Exception as exc:
+        print(f"[study_aid] LLM evaluation error: {exc}")
+
+    # Fallback nếu LLM không trả về đúng định dạng
+    if not eval_data:
+        eval_data = _generate_fallback_evaluation(
+            quiz_title=quiz.title,
+            document_title=doc_title,
+            score=attempt.score,
+            correct_count=correct_count,
+            total_questions=total_questions,
+            details=details,
+            document_id=document_id,
+        )
+
+    # Đảm bảo cấu trúc roadmap có đủ document_id nếu có
+    for step in eval_data.get("roadmap", []):
+        if document_id and not step.get("document_id"):
+            step["document_id"] = document_id
+        if not step.get("document_title"):
+            step["document_title"] = doc_title
+
+    evaluation = await study_aid_repo.create_learning_evaluation(
+        session,
+        user_id=student_id,
+        quiz_id=quiz.id,
+        attempt_id=attempt.id,
+        score=attempt.score,
+        competency_level=eval_data.get("competency_level", "Đạt yêu cầu"),
+        summary=eval_data.get("summary", ""),
+        strengths=eval_data.get("strengths", []),
+        weaknesses=eval_data.get("weaknesses", []),
+        roadmap=eval_data.get("roadmap", []),
+    )
+    await session.commit()
+
+    return {
+        "id": evaluation.id,
+        "user_id": evaluation.user_id,
+        "quiz_id": evaluation.quiz_id,
+        "attempt_id": evaluation.attempt_id,
+        "score": evaluation.score,
+        "competency_level": evaluation.competency_level,
+        "summary": evaluation.summary,
+        "strengths": evaluation.strengths,
+        "weaknesses": evaluation.weaknesses,
+        "roadmap": evaluation.roadmap,
+        "created_at": evaluation.created_at,
+    }
+
+
+async def get_attempt_evaluation(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    student_id: str,
+) -> dict[str, Any] | None:
+    """Lấy bản đánh giá năng lực của một lượt làm bài thi."""
+    attempt = await session.get(UserQuizAttempt, attempt_id)
+    if not attempt or attempt.student_id != student_id:
+        return None
+
+    evaluation = await study_aid_repo.get_evaluation_by_attempt(session, attempt_id)
+    if not evaluation:
+        return None
+
+    return {
+        "id": evaluation.id,
+        "user_id": evaluation.user_id,
+        "quiz_id": evaluation.quiz_id,
+        "attempt_id": evaluation.attempt_id,
+        "score": evaluation.score,
+        "competency_level": evaluation.competency_level,
+        "summary": evaluation.summary,
+        "strengths": evaluation.strengths,
+        "weaknesses": evaluation.weaknesses,
+        "roadmap": evaluation.roadmap,
+        "created_at": evaluation.created_at,
+    }
+

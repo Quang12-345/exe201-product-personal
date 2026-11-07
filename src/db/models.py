@@ -598,3 +598,31 @@ class UserQuizAttempt(Base):
 
     quiz: Mapped[Quiz] = relationship(back_populates="attempts")
     student: Mapped[User] = relationship(back_populates="quiz_attempts")
+
+
+class LearningEvaluation(Base):
+    """Bản đánh giá năng lực học tập, xác định điểm mạnh, điểm yếu và lộ trình cá nhân hóa."""
+
+    __tablename__ = "learning_evaluations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    quiz_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("quizzes.id", ondelete="CASCADE"), index=True
+    )
+    attempt_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("user_quiz_attempts.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    competency_level: Mapped[str] = mapped_column(String(50), default="Đạt yêu cầu")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    strengths: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    weaknesses: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    roadmap: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    user: Mapped[User] = relationship()
+    quiz: Mapped[Quiz] = relationship()
+    attempt: Mapped[UserQuizAttempt | None] = relationship()

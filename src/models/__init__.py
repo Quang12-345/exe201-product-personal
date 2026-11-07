@@ -86,6 +86,10 @@ from src.models.study_aid import (
     QuizSummary,
     RecentSubmissionItem,
     UserQuizAttemptItem,
+    LearningEvaluationResponse,
+    StrengthItem,
+    WeaknessItem,
+    RoadmapStep,
 )
 from src.models.user import (
     ChangePasswordRequest,
@@ -166,6 +170,10 @@ __all__ = [
     "QuizSubmitResponse",
     "UserQuizAttemptItem",
     "RecentSubmissionItem",
+    "LearningEvaluationResponse",
+    "StrengthItem",
+    "WeaknessItem",
+    "RoadmapStep",
     "ClassroomCreate",
 
     "ClassroomUpdate",

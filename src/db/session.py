@@ -146,6 +146,7 @@ async def _ensure_schema_upgrades(conn) -> None:
     needs_student_classroom_id = bool(student_cols) and "classroom_id" not in student_cols
     needs_exam_document_id = bool(exam_cols) and "document_id" not in exam_cols
     needs_exam_quiz_id = bool(exam_cols) and "quiz_id" not in exam_cols
+    needs_learning_evaluations_table = "learning_evaluations" not in table_names
 
     if (
         not needs_username
@@ -160,6 +161,7 @@ async def _ensure_schema_upgrades(conn) -> None:
         and not needs_student_classroom_id
         and not needs_exam_document_id
         and not needs_exam_quiz_id
+        and not needs_learning_evaluations_table
     ):
         return  # đã ở trạng thái mục tiêu → không chạy DDL
 
@@ -214,6 +216,29 @@ async def _ensure_schema_upgrades(conn) -> None:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_exams_quiz_id ON exams (quiz_id)"))
         except Exception:
             pass
+    if needs_learning_evaluations_table:
+        await conn.execute(text('''
+            CREATE TABLE IF NOT EXISTS learning_evaluations (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                quiz_id VARCHAR(36) NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
+                attempt_id VARCHAR(36) REFERENCES user_quiz_attempts(id) ON DELETE SET NULL,
+                score FLOAT NOT NULL DEFAULT 0.0,
+                competency_level VARCHAR(50) NOT NULL DEFAULT 'Đạt yêu cầu',
+                summary TEXT NOT NULL DEFAULT '',
+                strengths JSON NOT NULL DEFAULT '[]'::json,
+                weaknesses JSON NOT NULL DEFAULT '[]'::json,
+                roadmap JSON NOT NULL DEFAULT '[]'::json,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+            )
+        '''))
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_learning_evaluations_user_id ON learning_evaluations (user_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_learning_evaluations_quiz_id ON learning_evaluations (quiz_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_learning_evaluations_attempt_id ON learning_evaluations (attempt_id)"))
+        except Exception:
+            pass
+
 
     if needs_fc_user_id:
         await conn.execute(text("ALTER TABLE flashcards ADD COLUMN IF NOT EXISTS user_id VARCHAR(36) REFERENCES users(id) ON DELETE CASCADE"))

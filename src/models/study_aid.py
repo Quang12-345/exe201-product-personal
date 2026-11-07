@@ -125,3 +125,40 @@ class RecentSubmissionItem(BaseModel):
 class CustomQuizCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     questions: list[QuizQuestionCreate] = Field(..., min_length=1)
+
+
+class StrengthItem(BaseModel):
+    topic: str
+    description: str
+
+
+class WeaknessItem(BaseModel):
+    topic: str
+    issue: str
+    advice: str
+    failed_questions: list[int] = Field(default_factory=list)
+
+
+class RoadmapStep(BaseModel):
+    step: int
+    title: str
+    description: str
+    action_type: str = "read"  # read, flashcard, quiz, review
+    document_id: str | None = None
+    document_title: str | None = None
+
+
+class LearningEvaluationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: str
+    quiz_id: str
+    attempt_id: str | None = None
+    score: float
+    competency_level: str
+    summary: str
+    strengths: list[StrengthItem]
+    weaknesses: list[WeaknessItem]
+    roadmap: list[RoadmapStep]
+    created_at: datetime

@@ -82,6 +82,9 @@ from src.api.controllers.study_aid_controller import (
     list_recent_submissions_controller,
     parse_docx_quiz_controller,
     submit_quiz_controller,
+    generate_attempt_evaluation_controller,
+    get_attempt_evaluation_controller,
+    list_my_evaluations_controller,
 )
 from src.api.controllers.user_controller import (
     build_user_response,
@@ -165,6 +168,9 @@ __all__ = [
     "list_quiz_attempts_controller",
     "list_my_attempts_controller",
     "list_recent_submissions_controller",
+    "generate_attempt_evaluation_controller",
+    "get_attempt_evaluation_controller",
+    "list_my_evaluations_controller",
     "add_student_to_classroom_controller",
     "create_classroom_controller",
     "delete_classroom_controller",

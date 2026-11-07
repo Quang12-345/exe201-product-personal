@@ -22,6 +22,7 @@ from src.models.study_aid import (
     QuizSummary,
     RecentSubmissionItem,
     UserQuizAttemptItem,
+    LearningEvaluationResponse,
 )
 from src.repositories import study_aid_repo
 from src.services import study_aid as study_aid_service
@@ -626,3 +627,60 @@ async def create_custom_quiz_controller(
             for q in quiz.questions
         ],
     )
+
+# ---------------- Learning Evaluation Controllers ----------------
+
+
+async def generate_attempt_evaluation_controller(
+    session: AsyncSession,
+    user: User,
+    attempt_id: str,
+) -> LearningEvaluationResponse:
+    eval_dict = await study_aid_service.generate_learning_evaluation(
+        session, attempt_id=attempt_id, student_id=user.id
+    )
+    if "created_at" in eval_dict:
+        eval_dict["created_at"] = _to_utc(eval_dict["created_at"])
+    return LearningEvaluationResponse(**eval_dict)
+
+
+async def get_attempt_evaluation_controller(
+    session: AsyncSession,
+    user: User,
+    attempt_id: str,
+) -> LearningEvaluationResponse:
+    eval_dict = await study_aid_service.get_attempt_evaluation(
+        session, attempt_id=attempt_id, student_id=user.id
+    )
+    if not eval_dict:
+        eval_dict = await study_aid_service.generate_learning_evaluation(
+            session, attempt_id=attempt_id, student_id=user.id
+        )
+    if "created_at" in eval_dict:
+        eval_dict["created_at"] = _to_utc(eval_dict["created_at"])
+    return LearningEvaluationResponse(**eval_dict)
+
+
+async def list_my_evaluations_controller(
+    session: AsyncSession,
+    user: User,
+    limit: int = 10,
+) -> list[LearningEvaluationResponse]:
+    evals = await study_aid_repo.list_evaluations_by_student(session, user.id, limit=limit)
+    return [
+        LearningEvaluationResponse(
+            id=ev.id,
+            user_id=ev.user_id,
+            quiz_id=ev.quiz_id,
+            attempt_id=ev.attempt_id,
+            score=ev.score,
+            competency_level=ev.competency_level,
+            summary=ev.summary,
+            strengths=ev.strengths if isinstance(ev.strengths, list) else [],
+            weaknesses=ev.weaknesses if isinstance(ev.weaknesses, list) else [],
+            roadmap=ev.roadmap if isinstance(ev.roadmap, list) else [],
+            created_at=_to_utc(ev.created_at),
+        )
+        for ev in evals
+    ]
+

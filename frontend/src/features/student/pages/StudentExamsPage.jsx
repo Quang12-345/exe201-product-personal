@@ -13,6 +13,7 @@ import {
 } from '../../../components/common/icons.jsx'
 import IconSelect from '../../../components/common/IconSelect.jsx'
 import { subjectAll } from '../../admin/services/filterMeta'
+import LearningEvaluationCard from '../components/LearningEvaluationCard.jsx'
 import { notify } from '../../../components/common/toast.jsx'
 
 function getExamStatus(iso) {
@@ -72,6 +73,7 @@ function StudentExamsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submissionResult, setSubmissionResult] = useState(null)
   const [quizError, setQuizError] = useState('')
+  const [resultTab, setResultTab] = useState('evaluation')
 
   // Đếm ngược thời gian và tự động nộp bài
   const [timeLeft, setTimeLeft] = useState(null)
@@ -189,6 +191,7 @@ function StudentExamsPage() {
     setUserAnswers({})
     userAnswersRef.current = {}
     setSubmissionResult(null)
+    setResultTab('evaluation')
     setQuizError('')
     setIsTimeUp(false)
     autoSubmittedRef.current = false
@@ -239,6 +242,7 @@ function StudentExamsPage() {
     setUserAnswers({})
     userAnswersRef.current = {}
     setSubmissionResult(null)
+    setResultTab('evaluation')
     setQuizError('')
     setTimeLeft(null)
     setIsTimeUp(false)
@@ -1234,6 +1238,74 @@ function StudentExamsPage() {
                       )
                     })()}
 
+                    {/* Chuyển đổi tab kết quả */}
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 22, width: '100%' }}>
+                      <button
+                        type="button"
+                        onClick={() => setResultTab('evaluation')}
+                        style={{
+                          flex: 1,
+                          padding: '11px 16px',
+                          borderRadius: 10,
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          backgroundColor: resultTab === 'evaluation' ? '#0f172a' : '#ffffff',
+                          color: resultTab === 'evaluation' ? '#ffffff' : '#334155',
+                          border: resultTab === 'evaluation' ? '2px solid #0f172a' : '2px solid #cbd5e1',
+                          boxShadow: resultTab === 'evaluation' ? '3px 3px 0px #2563eb' : 'none',
+                        }}
+                      >
+                        <SparklesIcon size={17} />
+                        🎯 AI Đánh Giá Năng Lực & Lộ Trình
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setResultTab('details')}
+                        style={{
+                          flex: 1,
+                          padding: '11px 16px',
+                          borderRadius: 10,
+                          fontWeight: 800,
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          backgroundColor: resultTab === 'details' ? '#0f172a' : '#ffffff',
+                          color: resultTab === 'details' ? '#ffffff' : '#334155',
+                          border: resultTab === 'details' ? '2px solid #0f172a' : '2px solid #cbd5e1',
+                          boxShadow: resultTab === 'details' ? '3px 3px 0px #2563eb' : 'none',
+                        }}
+                      >
+                        📝 Chi Tiết Câu Hỏi ({submissionResult.correct_count}/{submissionResult.total_questions})
+                      </button>
+                    </div>
+
+                    {resultTab === 'evaluation' && (
+                      <LearningEvaluationCard
+                        attemptId={submissionResult.attempt_id}
+                        onRetake={() => {
+                          setUserAnswers({})
+                          userAnswersRef.current = {}
+                          setSubmissionResult(null)
+                          setIsTimeUp(false)
+                          autoSubmittedRef.current = false
+                          submittingRef.current = false
+                          const durationMins = Number(activeExam?.duration_minutes) > 0 ? Number(activeExam.duration_minutes) : 90
+                          setTimeLeft(durationMins * 60)
+                        }}
+                      />
+                    )}
+
+                    {resultTab === 'details' && (
+                      <div>
                     {/* Chi tiết từng câu hỏi & Lời giải thích */}
                     <h3 style={{ fontSize: 17, fontWeight: 800, margin: '0 0 16px 0', color: '#0f172a' }}>
                       Chi tiết bài làm & Lời giải thích:
@@ -1303,6 +1375,9 @@ function StudentExamsPage() {
                       ))}
                     </div>
 
+
+                      </div>
+                    )}
                     {/* Nút đóng & quay lại */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 28 }}>
                       <button
