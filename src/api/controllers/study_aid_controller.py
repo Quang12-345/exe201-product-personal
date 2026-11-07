@@ -426,25 +426,42 @@ async def list_quiz_attempts_controller(
 async def list_my_attempts_controller(
     session: AsyncSession, user: User
 ) -> list[UserQuizAttemptItem]:
-    role = _role_name(user)
-    if role == "student":
-        from src.services.billing import _active_subscription
-
-        subscription = await _active_subscription(session, user.id)
-        if subscription is None:
-            return []
     attempts = await study_aid_repo.list_attempts_by_student(session, user.id)
-    return [
-        UserQuizAttemptItem(
-            id=att.id,
-            quiz_id=att.quiz_id,
-            student_id=att.student_id,
-            score=att.score,
-            completed_at=_to_utc(att.completed_at),
-            answers=att.answers,
+    result = []
+    for att in attempts:
+        total_q = len(att.quiz.questions) if att.quiz and att.quiz.questions else 0
+        correct_c = round((att.score / 10.0) * total_q) if total_q > 0 else 0
+        result.append(
+            UserQuizAttemptItem(
+                id=att.id,
+                quiz_id=att.quiz_id,
+                student_id=att.student_id,
+                score=att.score,
+                completed_at=_to_utc(att.completed_at),
+                answers=att.answers,
+                quiz_title=att.quiz.title if att.quiz else "Đề thi",
+                total_questions=total_q,
+                correct_count=correct_c,
+            )
         )
-        for att in attempts
-    ]
+    return result
+
+
+async def get_attempt_review_controller(
+    session: AsyncSession,
+    user: User,
+    attempt_id: str,
+) -> QuizSubmitResponse:
+    role = _role_name(user) or "student"
+    result = await study_aid_service.get_attempt_review(
+        session,
+        attempt_id=attempt_id,
+        user_id=user.id,
+        role=role,
+    )
+    if "completed_at" in result:
+        result["completed_at"] = _to_utc(result["completed_at"])
+    return QuizSubmitResponse(**result)
 
 
 async def list_recent_submissions_controller(

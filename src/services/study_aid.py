@@ -585,3 +585,58 @@ async def get_attempt_evaluation(
         "created_at": evaluation.created_at,
     }
 
+
+
+async def get_attempt_review(
+    session: AsyncSession,
+    *,
+    attempt_id: str,
+    user_id: str,
+    role: str = "student",
+) -> dict[str, Any]:
+    """Lay chi tiet bai thi da nop: diem so, cau hoi, cau tra loi cua thi sinh va dap an/loi giai."""
+    result = await session.execute(
+        select(UserQuizAttempt)
+        .options(selectinload(UserQuizAttempt.quiz).selectinload(Quiz.questions))
+        .where(UserQuizAttempt.id == attempt_id)
+    )
+    attempt = result.scalar_one_or_none()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lượt làm bài thi.")
+
+    if role not in ("admin", "lecturer") and attempt.student_id != user_id:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem lại bài thi này.")
+
+    quiz = attempt.quiz
+    answers = attempt.answers or {}
+    total_questions = len(quiz.questions) if quiz and quiz.questions else 0
+    correct_count = 0
+    details = []
+
+    if quiz and quiz.questions:
+        for q in quiz.questions:
+            chosen = answers.get(q.id) or answers.get(str(q.id))
+            is_correct = _answers_match(chosen, q.correct_answer)
+            if is_correct:
+                correct_count += 1
+            details.append(
+                {
+                    "question_id": q.id,
+                    "question_text": q.question_text,
+                    "chosen_answer": chosen,
+                    "correct_answer": q.correct_answer,
+                    "is_correct": is_correct,
+                    "explanation": q.explanation,
+                }
+            )
+
+    return {
+        "attempt_id": attempt.id,
+        "quiz_id": quiz.id if quiz else "",
+        "quiz_title": quiz.title if quiz else "Đề thi trắc nghiệm",
+        "score": attempt.score,
+        "total_questions": total_questions,
+        "correct_count": correct_count,
+        "completed_at": attempt.completed_at,
+        "details": details,
+    }

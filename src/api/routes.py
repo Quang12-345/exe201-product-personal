@@ -80,6 +80,7 @@ from src.api.controllers import (
     generate_attempt_evaluation_controller,
     get_attempt_evaluation_controller,
     list_my_evaluations_controller,
+    get_attempt_review_controller,
     submit_signal_controller,
     suggest_metadata_controller,
     update_classroom_controller,
@@ -1406,6 +1407,20 @@ async def get_attempt_evaluation(
     user=Depends(get_current_user),
 ) -> LearningEvaluationResponse:
     return await get_attempt_evaluation_controller(session, user, attempt_id)
+
+
+@router.get(
+    "/study-aids/quiz-attempts/{attempt_id}/review",
+    response_model=QuizSubmitResponse,
+    tags=["study-aid"],
+    summary="Get detailed questions, answers and results of a quiz attempt",
+)
+async def get_attempt_review(
+    attempt_id: str,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+) -> QuizSubmitResponse:
+    return await get_attempt_review_controller(session, user, attempt_id)
 
 
 @router.get(

@@ -92,3 +92,9 @@ export async function fetchMyEvaluations(limit = 10) {
   })
   return data || []
 }
+
+
+export async function fetchAttemptReview(attemptId) {
+  const { data } = await api.get(`/api/v1/study-aids/quiz-attempts/${attemptId}/review`)
+  return data
+}

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, Link } from 'react-router-dom'
 import { getStudentExams, formatExamDate } from '../services/examService'
-import { fetchQuiz, submitQuiz } from '../services/studyService'
+import { fetchQuiz, submitQuiz, fetchMyQuizAttempts, fetchAttemptReview } from '../services/studyService'
 import { getEnrolledClassrooms } from '../services/classroomService'
 import {
   CalendarIcon,
@@ -65,6 +65,47 @@ function StudentExamsPage() {
   const [loading, setLoading] = useState(true)
   const [subject, setSubject] = useState('all')
   const [search, setSearch] = useState('')
+  const [pageTab, setPageTab] = useState('exams') // 'exams' | 'history'
+  const [myAttempts, setMyAttempts] = useState([])
+  const [attemptsLoading, setAttemptsLoading] = useState(false)
+
+  const loadMyAttempts = useCallback(() => {
+    setAttemptsLoading(true)
+    fetchMyQuizAttempts()
+      .then((data) => setMyAttempts(data || []))
+      .catch(() => setMyAttempts([]))
+      .finally(() => setAttemptsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    loadMyAttempts()
+  }, [loadMyAttempts])
+
+  const attemptsByQuizId = useMemo(() => {
+    const map = {}
+    for (const att of myAttempts) {
+      if (!map[att.quiz_id]) {
+        map[att.quiz_id] = []
+      }
+      map[att.quiz_id].push(att)
+    }
+    return map
+  }, [myAttempts])
+
+  const handleReviewAttempt = async (attemptId, examTitle) => {
+    setQuizLoading(true)
+    setActiveExam({ title: examTitle || 'Bài thi trắc nghiệm', duration_minutes: 0 })
+    try {
+      const reviewData = await fetchAttemptReview(attemptId)
+      setSubmissionResult(reviewData)
+      setResultTab('evaluation')
+    } catch (err) {
+      notify.error('Không thể tải chi tiết bài thi.')
+      setActiveExam(null)
+    } finally {
+      setQuizLoading(false)
+    }
+  }
 
   // Modal / Full-screen làm bài thi trắc nghiệm
   const [activeExam, setActiveExam] = useState(null)
@@ -149,6 +190,7 @@ function StudentExamsPage() {
       const answersToSend = userAnswersRef.current || {}
       const result = await submitQuiz(quizData.id, answersToSend)
       setSubmissionResult(result)
+      loadMyAttempts()
     } catch (err) {
       const detail = err?.response?.data?.detail
       setQuizError(typeof detail === 'string' ? detail : 'Tự động nộp bài thất bại. Vui lòng thử lại.')
@@ -283,6 +325,7 @@ function StudentExamsPage() {
     try {
       const result = await submitQuiz(quizData.id, userAnswers)
       setSubmissionResult(result)
+      loadMyAttempts()
     } catch (err) {
       const detail = err?.response?.data?.detail
       setQuizError(typeof detail === 'string' ? detail : 'Chấm điểm thất bại. Vui lòng thử lại.')
@@ -328,6 +371,178 @@ function StudentExamsPage() {
         </div>
       </div>
 
+      {/* Tab Switcher: Danh sách kỳ thi vs Lịch sử bài thi */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+        <button
+          type="button"
+          onClick={() => setPageTab('exams')}
+          style={{
+            padding: '10px 18px',
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 14,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: pageTab === 'exams' ? '#0f172a' : '#ffffff',
+            color: pageTab === 'exams' ? '#ffffff' : '#334155',
+            border: '2px solid #000000',
+            boxShadow: pageTab === 'exams' ? '3px 3px 0px #2563eb' : '2px 2px 0px #000000',
+          }}
+        >
+          <CalendarIcon size={16} />
+          📅 Danh sách kỳ thi ({filtered.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setPageTab('history')}
+          style={{
+            padding: '10px 18px',
+            borderRadius: 10,
+            fontWeight: 800,
+            fontSize: 14,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: pageTab === 'history' ? '#0f172a' : '#ffffff',
+            color: pageTab === 'history' ? '#ffffff' : '#334155',
+            border: '2px solid #000000',
+            boxShadow: pageTab === 'history' ? '3px 3px 0px #2563eb' : '2px 2px 0px #000000',
+          }}
+        >
+          <SparklesIcon size={16} />
+          📜 Lịch sử bài thi của tôi ({myAttempts.length})
+        </button>
+      </div>
+
+      {pageTab === 'history' ? (
+        <div style={{ marginTop: 8 }}>
+          {attemptsLoading ? (
+            <div className="dmrs-card" style={{ padding: 48, textAlign: 'center', color: '#6b7280' }}>
+              Đang tải lịch sử làm bài thi...
+            </div>
+          ) : myAttempts.length === 0 ? (
+            <div
+              className="dmrs-card"
+              style={{
+                padding: '48px 24px',
+                textAlign: 'center',
+                backgroundColor: '#fafafa',
+                border: '2px dashed #cbd5e1',
+                borderRadius: 14,
+              }}
+            >
+              <div style={{ fontSize: 44, marginBottom: 12 }}>📜</div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 900, color: '#0f172a' }}>
+                Bạn chưa hoàn thành bài thi nào
+              </h3>
+              <p style={{ margin: '0 0 16px 0', fontSize: 13.5, color: '#64748b' }}>
+                Hãy chuyển sang tab "Danh sách kỳ thi" để tham gia làm bài thi trắc nghiệm trực tuyến.
+              </p>
+              <button
+                type="button"
+                className="dmrs-btn dmrs-btn--primary"
+                onClick={() => setPageTab('exams')}
+                style={{ padding: '8px 18px', fontWeight: 800, fontSize: 13.5 }}
+              >
+                Xem danh sách kỳ thi →
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {myAttempts.map((att, idx) => {
+                const badge = getScoreBadge(att.score)
+                return (
+                  <div
+                    key={att.id || idx}
+                    className="dmrs-card"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '18px 22px',
+                      flexWrap: 'wrap',
+                      gap: 16,
+                      border: '2px solid #000000',
+                      borderRadius: 12,
+                      boxShadow: '3px 3px 0px #000000',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    <div style={{ flex: '1 1 320px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 800,
+                            backgroundColor: badge.bg,
+                            color: badge.color,
+                            border: '1.5px solid #000000',
+                            borderRadius: 6,
+                            padding: '2px 8px',
+                          }}
+                        >
+                          {badge.text}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <ClockIcon size={13} />
+                          {new Date(att.completed_at).toLocaleDateString('vi-VN')} {new Date(att.completed_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: 17, fontWeight: 900, margin: '0 0 6px 0', color: '#0f172a' }}>
+                        {att.quiz_title || 'Bài thi trắc nghiệm'}
+                      </h3>
+
+                      <div style={{ fontSize: 13, color: '#475569' }}>
+                        {att.total_questions ? (
+                          <span>Trả lời đúng <strong>{att.correct_count}</strong>/{att.total_questions} câu</span>
+                        ) : (
+                          <span>Đã chấm điểm hoàn tất</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: badge.color, lineHeight: 1 }}>
+                          {att.score}
+                          <span style={{ fontSize: 16, color: '#64748b' }}>/10</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Điểm số</div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="dmrs-btn dmrs-btn--primary"
+                        onClick={() => handleReviewAttempt(att.id, att.quiz_title)}
+                        style={{
+                          padding: '9px 16px',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          backgroundColor: '#0f172a',
+                          borderColor: '#000000',
+                          boxShadow: '2px 2px 0px #000000',
+                        }}
+                      >
+                        <SparklesIcon size={14} />
+                        Xem lại bài & Đánh giá AI →
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
       {/* Toolbar filter */}
       <div
         className="dmrs-card dmrs-toolbar"
@@ -549,6 +764,52 @@ function StudentExamsPage() {
                   </div>
                 </div>
 
+                {/* Trạng thái đã thi nếu có */}
+                {attemptsByQuizId[item.quiz_id]?.length > 0 && (
+                  <div
+                    style={{
+                      backgroundColor: '#f0fdf4',
+                      border: '1.5px solid #86efac',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 12 }}>
+                      <div style={{ color: '#166534', fontWeight: 800 }}>
+                        ✓ Đã làm bài ({attemptsByQuizId[item.quiz_id].length} lần)
+                      </div>
+                      <div style={{ color: '#15803d', fontWeight: 700, marginTop: 2 }}>
+                        Điểm gần nhất: <strong>{attemptsByQuizId[item.quiz_id][0].score}/10</strong>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleReviewAttempt(attemptsByQuizId[item.quiz_id][0].id, item.title)
+                      }}
+                      style={{
+                        padding: '5px 10px',
+                        fontSize: 11.5,
+                        fontWeight: 800,
+                        backgroundColor: '#15803d',
+                        color: '#ffffff',
+                        border: '1.5px solid #000000',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        boxShadow: '1.5px 1.5px 0px #000000',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Xem lại bài
+                    </button>
+                  </div>
+                )}
+
                 {/* Khối Đề thi trắc nghiệm */}
                 <div
                   style={{
@@ -609,7 +870,7 @@ function StudentExamsPage() {
                       }}
                       onClick={() => startExam(item)}
                     >
-                      Vào làm bài thi trắc nghiệm
+                      {attemptsByQuizId[item.quiz_id]?.length > 0 ? '🔄 Thi lại bài trắc nghiệm' : 'Vào làm bài thi trắc nghiệm'}
                     </button>
                   ) : null}
                 </div>
@@ -617,6 +878,8 @@ function StudentExamsPage() {
             )
           })}
         </div>
+      )}
+        </>
       )}
 
       {/* GIAO DIỆN LÀM BÀI THI TOÀN MÀN HÌNH (FULL-SCREEN EXAM MODE QUA REACT PORTAL) */}

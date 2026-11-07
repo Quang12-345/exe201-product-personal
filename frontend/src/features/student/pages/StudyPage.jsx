@@ -638,8 +638,10 @@ export default function StudyPage() {
                   <thead>
                     <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#475569' }}>
                       <th style={{ padding: '10px 12px' }}>Thời gian</th>
+                      <th style={{ padding: '10px 12px' }}>Tên bài thi / Đề thi</th>
                       <th style={{ padding: '10px 12px' }}>Điểm số</th>
                       <th style={{ padding: '10px 12px' }}>Đánh giá</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right' }}>Hành động</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -647,6 +649,9 @@ export default function StudyPage() {
                       <tr key={att.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '12px' }}>
                           {formatDate(att.completed_at)}
+                        </td>
+                        <td style={{ padding: '12px', fontWeight: 700, color: '#0f172a' }}>
+                          {att.quiz_title || 'Bài kiểm tra trắc nghiệm'}
                         </td>
                         <td style={{ padding: '12px', fontWeight: 700, fontSize: 16, color: att.score >= 5 ? '#059669' : '#dc2626' }}>
                           {att.score} / 10
@@ -663,6 +668,24 @@ export default function StudyPage() {
                           >
                             {att.score >= 8 ? 'Xuất sắc' : att.score >= 5 ? 'Đạt' : 'Cần ôn lại'}
                           </span>
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/student/exams')}
+                            style={{
+                              padding: '5px 12px',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              backgroundColor: '#0f172a',
+                              color: '#ffffff',
+                              border: '1px solid #000000',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Xem trên Kỳ thi →
+                          </button>
                         </td>
                       </tr>
                     ))}

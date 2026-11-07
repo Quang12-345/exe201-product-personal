@@ -185,6 +185,7 @@ async def list_attempts_by_student(
 ) -> list[UserQuizAttempt]:
     result = await session.execute(
         select(UserQuizAttempt)
+        .options(selectinload(UserQuizAttempt.quiz).selectinload(Quiz.questions))
         .where(UserQuizAttempt.student_id == student_id)
         .order_by(UserQuizAttempt.completed_at.desc())
     )
@@ -219,7 +220,7 @@ async def list_recent_submissions(
             qq_sub.label("total_questions"),
         )
         .join(Quiz, UserQuizAttempt.quiz_id == Quiz.id)
-        .join(Document, Quiz.document_id == Document.id)
+        .outerjoin(Document, Quiz.document_id == Document.id)
         .outerjoin(Classroom, Document.classroom_id == Classroom.id)
         .join(User, UserQuizAttempt.student_id == User.id)
     )

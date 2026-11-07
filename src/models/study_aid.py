@@ -92,6 +92,7 @@ class QuizSubmitResponse(BaseModel):
     correct_count: int
     completed_at: datetime
     details: list[QuizSubmitDetail]
+    quiz_title: str | None = None
 
 
 class UserQuizAttemptItem(BaseModel):
@@ -103,6 +104,9 @@ class UserQuizAttemptItem(BaseModel):
     score: float
     completed_at: datetime
     answers: dict[str, Any] | None = None
+    quiz_title: str | None = None
+    total_questions: int | None = None
+    correct_count: int | None = None
 
 
 class RecentSubmissionItem(BaseModel):
