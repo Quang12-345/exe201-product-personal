@@ -10,6 +10,7 @@ import {
   SearchIcon,
   CheckCircleIcon,
   BookOpenIcon,
+  SparklesIcon,
 } from '../../../components/common/icons.jsx'
 import IconSelect from '../../../components/common/IconSelect.jsx'
 import { subjectAll } from '../../admin/services/filterMeta'
