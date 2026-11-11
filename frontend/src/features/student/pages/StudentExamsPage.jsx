@@ -92,21 +92,6 @@ function StudentExamsPage() {
     return map
   }, [myAttempts])
 
-  const handleReviewAttempt = async (attemptId, examTitle) => {
-    setQuizLoading(true)
-    setActiveExam({ title: examTitle || 'Bài thi trắc nghiệm', duration_minutes: 0 })
-    try {
-      const reviewData = await fetchAttemptReview(attemptId)
-      setSubmissionResult(reviewData)
-      setResultTab('evaluation')
-    } catch (err) {
-      notify.error('Không thể tải chi tiết bài thi.')
-      setActiveExam(null)
-    } finally {
-      setQuizLoading(false)
-    }
-  }
-
   // Modal / Full-screen làm bài thi trắc nghiệm
   const [activeExam, setActiveExam] = useState(null)
   const [quizData, setQuizData] = useState(null)
@@ -291,6 +276,86 @@ function StudentExamsPage() {
     setIsTimeUp(false)
     autoSubmittedRef.current = false
     submittingRef.current = false
+  }
+
+  const handleReviewAttempt = async (attemptId, examTitle, examItem = null) => {
+    const matchedExam =
+      (examItem?.id ? examItem : null) ||
+      (examItem?.quiz_id ? exams.find((x) => x.quiz_id === examItem.quiz_id) : null) ||
+      examItem
+
+    setQuizError('')
+    setSubmissionResult(null)
+    setQuizData(null)
+    setUserAnswers({})
+    userAnswersRef.current = {}
+    setIsTimeUp(false)
+    autoSubmittedRef.current = false
+    submittingRef.current = false
+    setTimeLeft(null)
+    setQuizLoading(true)
+    setActiveExam({
+      ...(matchedExam || {}),
+      title: examTitle || matchedExam?.title || 'Bài thi trắc nghiệm',
+      duration_minutes: matchedExam?.duration_minutes ?? 0,
+    })
+
+    try {
+      document.body.style.overflow = 'hidden'
+    } catch (_) {}
+
+    try {
+      const reviewData = await fetchAttemptReview(attemptId)
+      setSubmissionResult(reviewData)
+      setActiveExam((prev) => {
+        const linkedExam =
+          prev?.id
+            ? prev
+            : exams.find((x) => x.quiz_id === reviewData.quiz_id) || prev
+        return {
+          ...(linkedExam || {}),
+          quiz_id: linkedExam?.quiz_id || reviewData.quiz_id,
+          quiz_title: linkedExam?.quiz_title || reviewData.quiz_title,
+          title: prev?.title || linkedExam?.title || reviewData.quiz_title || 'Bài thi trắc nghiệm',
+          duration_minutes: linkedExam?.duration_minutes ?? prev?.duration_minutes ?? 0,
+        }
+      })
+      setResultTab('evaluation')
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      notify.error(typeof detail === 'string' && detail ? detail : 'Không thể tải chi tiết bài thi.')
+      try {
+        document.body.style.overflow = ''
+      } catch (_) {}
+      setActiveExam(null)
+    } finally {
+      setQuizLoading(false)
+    }
+  }
+
+  const handleRetakeExam = () => {
+    if (quizData) {
+      setUserAnswers({})
+      userAnswersRef.current = {}
+      setSubmissionResult(null)
+      setIsTimeUp(false)
+      autoSubmittedRef.current = false
+      submittingRef.current = false
+      const durationMins = Number(activeExam?.duration_minutes) > 0 ? Number(activeExam.duration_minutes) : 90
+      setTimeLeft(durationMins * 60)
+      return
+    }
+    const targetQuizId = activeExam?.quiz_id || submissionResult?.quiz_id
+    if (targetQuizId) {
+      startExam({
+        ...(activeExam || {}),
+        quiz_id: targetQuizId,
+        title: activeExam?.title || submissionResult?.quiz_title || 'Bài thi trắc nghiệm',
+        quiz_title: activeExam?.quiz_title || submissionResult?.quiz_title,
+      })
+    } else {
+      closeExamModal()
+    }
   }
 
   const handleSelectOption = (questionId, option) => {
@@ -518,7 +583,12 @@ function StudentExamsPage() {
                       <button
                         type="button"
                         className="dmrs-btn dmrs-btn--primary"
-                        onClick={() => handleReviewAttempt(att.id, att.quiz_title)}
+                        onClick={() =>
+                          handleReviewAttempt(att.id, att.quiz_title, {
+                            quiz_id: att.quiz_id,
+                            quiz_title: att.quiz_title,
+                          })
+                        }
                         style={{
                           padding: '9px 16px',
                           fontSize: 13,
@@ -790,7 +860,7 @@ function StudentExamsPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleReviewAttempt(attemptsByQuizId[item.quiz_id][0].id, item.title)
+                        handleReviewAttempt(attemptsByQuizId[item.quiz_id][0].id, item.title, item)
                       }}
                       style={{
                         padding: '5px 10px',
@@ -920,20 +990,22 @@ function StudentExamsPage() {
             >
               {/* Cụm trái: Thông tin bài thi */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    backgroundColor: '#e0e7ff',
-                    color: '#3730a3',
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: '1.5px solid #000000',
-                    flexShrink: 0,
-                  }}
-                >
-                  {activeExam.subject}
-                </span>
+                {activeExam.subject ? (
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      backgroundColor: '#e0e7ff',
+                      color: '#3730a3',
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: '1.5px solid #000000',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {activeExam.subject}
+                  </span>
+                ) : null}
                 <div style={{ minWidth: 0 }}>
                   <h2
                     style={{
@@ -951,7 +1023,10 @@ function StudentExamsPage() {
                     ⚡ {activeExam.title}
                   </h2>
                   <div style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    Thời lượng: <strong>{activeExam.duration_minutes || 90} phút</strong> · Đề thi: {activeExam.quiz_title || 'Trắc nghiệm online'}
+                    {Number(activeExam.duration_minutes) > 0 ? (
+                      <>Thời lượng: <strong>{activeExam.duration_minutes} phút</strong> · </>
+                    ) : null}
+                    Đề thi: {activeExam.quiz_title || 'Trắc nghiệm online'}
                   </div>
                 </div>
               </div>
@@ -1555,16 +1630,7 @@ function StudentExamsPage() {
                     {resultTab === 'evaluation' && (
                       <LearningEvaluationCard
                         attemptId={submissionResult.attempt_id}
-                        onRetake={() => {
-                          setUserAnswers({})
-                          userAnswersRef.current = {}
-                          setSubmissionResult(null)
-                          setIsTimeUp(false)
-                          autoSubmittedRef.current = false
-                          submittingRef.current = false
-                          const durationMins = Number(activeExam?.duration_minutes) > 0 ? Number(activeExam.duration_minutes) : 90
-                          setTimeLeft(durationMins * 60)
-                        }}
+                        onRetake={handleRetakeExam}
                       />
                     )}
 
@@ -1647,16 +1713,7 @@ function StudentExamsPage() {
                       <button
                         type="button"
                         className="dmrs-btn dmrs-btn--ghost"
-                        onClick={() => {
-                          setUserAnswers({})
-                          userAnswersRef.current = {}
-                          setSubmissionResult(null)
-                          setIsTimeUp(false)
-                          autoSubmittedRef.current = false
-                          submittingRef.current = false
-                          const durationMins = Number(activeExam?.duration_minutes) > 0 ? Number(activeExam.duration_minutes) : 90
-                          setTimeLeft(durationMins * 60)
-                        }}
+                        onClick={handleRetakeExam}
                       >
                         Làm lại bài thi
                       </button>

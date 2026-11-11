@@ -544,3 +544,163 @@ async def test_route_list_recent_submissions_as_lecturer(client, as_lecturer, mo
     assert data[0]["student_name"] == "Nguyen Van A"
     assert data[0]["score_display"] == "8/10"
 
+
+@pytest.mark.asyncio
+async def test_attempt_review_requires_auth(client):
+    res = await client.get("/api/v1/study-aids/quiz-attempts/att-1/review")
+    assert res.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_route_get_attempt_review_as_student(client, as_student, monkeypatch):
+    mock_review = sac.QuizSubmitResponse(
+        attempt_id="att-1",
+        quiz_id="quiz-1",
+        quiz_title="Quiz Triết Học",
+        score=5.0,
+        total_questions=2,
+        correct_count=1,
+        completed_at=datetime.now(),
+        details=[
+            {
+                "question_id": "qq-1",
+                "question_text": "Câu 1?",
+                "chosen_answer": "A. Sai",
+                "correct_answer": "B. Đúng",
+                "is_correct": False,
+                "explanation": "Giải thích câu 1",
+            },
+            {
+                "question_id": "qq-2",
+                "question_text": "Câu 2?",
+                "chosen_answer": "C. Đúng",
+                "correct_answer": "C. Đúng",
+                "is_correct": True,
+                "explanation": "Giải thích câu 2",
+            },
+        ],
+    )
+
+    async def fake_controller(session, user, attempt_id):
+        assert attempt_id == "att-1"
+        assert user.id == "student-1"
+        return mock_review
+
+    monkeypatch.setattr("src.api.routes.get_attempt_review_controller", fake_controller)
+
+    res = await client.get("/api/v1/study-aids/quiz-attempts/att-1/review")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["attempt_id"] == "att-1"
+    assert data["quiz_title"] == "Quiz Triết Học"
+    assert data["score"] == 5.0
+    assert data["correct_count"] == 1
+    assert data["total_questions"] == 2
+    assert len(data["details"]) == 2
+    assert data["details"][0]["is_correct"] is False
+    assert data["details"][1]["is_correct"] is True
+
+
+@pytest.mark.asyncio
+async def test_service_get_attempt_review_with_real_db():
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from src.db.models import Base, Quiz, QuizQuestion, Role, User, UserQuizAttempt
+    from src.services import study_aid as study_aid_service
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with session_factory() as session:
+            role = Role(id="role-stu", name="student", code="SV", display_name="Sinh viên")
+            student = User(
+                id="stu-1",
+                username="stu1",
+                email="stu1@example.com",
+                password="hash",
+                full_name="Sinh Viên 1",
+                role_id="role-stu",
+            )
+            other_student = User(
+                id="stu-2",
+                username="stu2",
+                email="stu2@example.com",
+                password="hash",
+                full_name="Sinh Viên 2",
+                role_id="role-stu",
+            )
+            quiz = Quiz(id="quiz-1", title="Quiz Triết Học", user_id="stu-1")
+            q1 = QuizQuestion(
+                id="q-1",
+                quiz_id="quiz-1",
+                question_text="Hàng hóa có mấy thuộc tính?",
+                options=["A. 1", "B. 2", "C. 3", "D. 4"],
+                correct_answer="B. 2",
+                explanation="Giá trị sử dụng và giá trị.",
+            )
+            q2 = QuizQuestion(
+                id="q-2",
+                quiz_id="quiz-1",
+                question_text="Ai là tác giả bộ Tư bản?",
+                options=["A. C.Mác", "B. Hegel", "C. Kant", "D. Locke"],
+                correct_answer="A. C.Mác",
+                explanation="C.Mác viết bộ Tư bản.",
+            )
+            attempt = UserQuizAttempt(
+                id="att-1",
+                quiz_id="quiz-1",
+                student_id="stu-1",
+                score=5.0,
+                answers={"q-1": "A. 1", "q-2": "A. C.Mác"},
+            )
+            session.add_all([role, student, other_student, quiz, q1, q2, attempt])
+            await session.commit()
+
+            # Chủ sở hữu bài làm xem lại thành công
+            res = await study_aid_service.get_attempt_review(
+                session, attempt_id="att-1", user_id="stu-1", role="student"
+            )
+            assert res["attempt_id"] == "att-1"
+            assert res["quiz_id"] == "quiz-1"
+            assert res["quiz_title"] == "Quiz Triết Học"
+            assert res["score"] == 5.0
+            assert res["total_questions"] == 2
+            assert res["correct_count"] == 1
+            by_qid = {d["question_id"]: d for d in res["details"]}
+            assert by_qid["q-1"]["chosen_answer"] == "A. 1"
+            assert by_qid["q-1"]["correct_answer"] == "B. 2"
+            assert by_qid["q-1"]["is_correct"] is False
+            assert by_qid["q-2"]["is_correct"] is True
+
+            # Sinh viên khác xem -> 403
+            with pytest.raises(HTTPException) as exc_403:
+                await study_aid_service.get_attempt_review(
+                    session, attempt_id="att-1", user_id="stu-2", role="student"
+                )
+            assert exc_403.value.status_code == 403
+
+            # Giảng viên xem -> thành công
+            lec_res = await study_aid_service.get_attempt_review(
+                session, attempt_id="att-1", user_id="lec-1", role="lecturer"
+            )
+            assert lec_res["attempt_id"] == "att-1"
+
+            # Controller trả về QuizSubmitResponse đầy đủ
+            ctrl_res = await sac.get_attempt_review_controller(
+                session, _user("student", "stu-1"), "att-1"
+            )
+            assert ctrl_res.attempt_id == "att-1"
+            assert ctrl_res.quiz_title == "Quiz Triết Học"
+            assert len(ctrl_res.details) == 2
+
+            # Không tồn tại -> 404
+            with pytest.raises(HTTPException) as exc_404:
+                await study_aid_service.get_attempt_review(
+                    session, attempt_id="missing", user_id="stu-1", role="student"
+                )
+            assert exc_404.value.status_code == 404
+    finally:
+        await engine.dispose()

@@ -8,8 +8,9 @@ from fastapi import HTTPException
 from langchain_core.messages import HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from src.db.models import Document, DocumentChunk, Flashcard, LearningEvaluation, Quiz, UserQuizAttempt
+from src.db.models import Document, DocumentChunk, Flashcard, Quiz, UserQuizAttempt
 from src.repositories import document_repo, study_aid_repo
 from src.services.llm import get_llm
 
@@ -665,7 +666,13 @@ async def get_attempt_review(
         raise HTTPException(status_code=403, detail="Bạn không có quyền xem lại bài thi này.")
 
     quiz = attempt.quiz
-    answers = attempt.answers or {}
+    raw_answers = attempt.answers
+    if isinstance(raw_answers, str):
+        try:
+            raw_answers = json.loads(raw_answers)
+        except Exception:
+            raw_answers = {}
+    answers = raw_answers if isinstance(raw_answers, dict) else {}
     total_questions = len(quiz.questions) if quiz and quiz.questions else 0
     correct_count = 0
     details = []
