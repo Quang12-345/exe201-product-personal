@@ -6,14 +6,18 @@ export async function getBillingStatus() {
   return data
 }
 
-export async function startProCheckout(returnTo) {
+export async function startProCheckout(returnTo, planCode = 'pro_monthly') {
   const payload = {
-    plan_code: 'pro_monthly',
+    plan_code: planCode,
     return_to: returnTo,
     origin: typeof window !== 'undefined' ? window.location.origin : undefined,
   }
   const { data } = await api.post(ENDPOINTS.vnpayCheckout, payload)
   return data
+}
+
+export async function startLecturerCheckout(returnTo = '/lecturer/classes') {
+  return startProCheckout(returnTo, 'lecturer_monthly')
 }
 
 export async function reconcileProPayment(orderCode) {

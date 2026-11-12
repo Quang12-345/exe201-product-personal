@@ -97,7 +97,7 @@ def test_vnpay_create_openapi_has_explicit_plan_schema():
     assert "/api/v1/payments/vnpay/ipn" in schema["paths"]
     assert "/api/v1/payments/vnpay/reconcile/{order_code}" in schema["paths"]
     assert operation["requestBody"]["required"] is True
-    assert request_schema["properties"]["plan_code"]["const"] == "pro_monthly"
+    assert set(request_schema["properties"]["plan_code"]["enum"]) == {"pro_monthly", "lecturer_monthly"}
     assert "additionalProperties" not in request_schema
 
 
@@ -172,3 +172,166 @@ async def test_vnpay_return_handles_empty_params_without_error(client):
     location = response.headers.get("location", "")
     assert "payment=invalid" in location
     assert "order_code=0" in location
+
+
+@pytest.mark.asyncio
+async def test_vnpay_checkout_routes_by_role_and_blocks_mismatch(client, monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from src.api.dependencies import get_current_user
+    from src.db.session import get_db
+    from src.main import app
+
+    fake_db = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: fake_db
+    monkeypatch.setattr(
+        "src.config.get_settings",
+        lambda: SimpleNamespace(payos_client_id="", payos_api_key="", payos_checksum_key=""),
+    )
+
+    captured_calls = []
+
+    async def fake_vnpay_checkout(session, *, user, ip_address, return_to=None, plan_code="pro_monthly"):
+        captured_calls.append({"user_id": user.id, "plan_code": plan_code})
+        amount = 129_000 if plan_code == "lecturer_monthly" else 39_000
+        return {
+            "order_code": 777001,
+            "amount": amount,
+            "payment_url": "https://sandbox.example/pay",
+            "checkout_url": "https://sandbox.example/pay",
+            "expires_at": "2026-11-12T12:00:00Z",
+        }
+
+    monkeypatch.setattr(routes, "create_vnpay_checkout", fake_vnpay_checkout)
+
+    # Lecturer defaults to lecturer_monthly (129,000 VND) when plan_code is omitted
+    lecturer = SimpleNamespace(
+        id="lec-1", role_id="r-lec", status="active", role=SimpleNamespace(name="lecturer")
+    )
+    app.dependency_overrides[get_current_user] = lambda: lecturer
+    lec_ok = await client.post("/api/v1/payments/vnpay/create", json={"return_to": "/lecturer/classes"})
+    assert lec_ok.status_code == 200
+    assert lec_ok.json()["amount"] == 129_000
+    assert captured_calls[-1]["plan_code"] == "lecturer_monthly"
+
+    # Lecturer cannot buy student plan
+    lec_bad = await client.post("/api/v1/payments/vnpay/create", json={"plan_code": "pro_monthly"})
+    assert lec_bad.status_code == 403
+
+    # Student cannot buy lecturer plan, and student defaults to pro_monthly (39,000 VND)
+    student = SimpleNamespace(
+        id="stu-1", role_id="r-stu", status="active", role=SimpleNamespace(name="student")
+    )
+    app.dependency_overrides[get_current_user] = lambda: student
+    stu_bad = await client.post("/api/v1/payments/vnpay/create", json={"plan_code": "lecturer_monthly"})
+    assert stu_bad.status_code == 403
+
+    stu_ok = await client.post("/api/v1/payments/vnpay/create", json={})
+    assert stu_ok.status_code == 200
+    assert stu_ok.json()["amount"] == 39_000
+    assert captured_calls[-1]["plan_code"] == "pro_monthly"
+
+
+@pytest.mark.asyncio
+async def test_unpaid_lecturer_routes_enforce_5_class_limit_and_feature_locks(client, as_lecturer):
+    from datetime import UTC, datetime, timedelta
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from src.db.models import Base, Classroom, Role, Subscription, User
+    from src.db.session import get_db
+    from src.main import app
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def override_db():
+        async with session_factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = override_db
+
+    try:
+        async with session_factory() as seed:
+            seed.add(Role(id="r-lec", name="lecturer", code="GV", display_name="Giảng viên"))
+            seed.add(
+                User(
+                    id="lecturer-1",
+                    username="lec1",
+                    email="lec1@example.com",
+                    password="hash",
+                    full_name="GV 1",
+                    role_id="r-lec",
+                )
+            )
+            for idx in range(5):
+                seed.add(
+                    Classroom(
+                        id=f"c-{idx}",
+                        name=f"Class {idx}",
+                        code=f"CLS{idx}",
+                        subject=f"Subject {idx}",
+                        created_by="lecturer-1",
+                    )
+                )
+            await seed.commit()
+
+        # 6th classroom blocked with 403 for unpaid lecturer
+        res_cls = await client.post(
+            "/api/v1/classrooms",
+            json={"name": "Lop thu 6", "subject": "Toan"},
+        )
+        assert res_cls.status_code == 403
+
+        # Exams & custom quiz creation blocked with 403 for unpaid lecturer
+        res_exam = await client.post(
+            "/api/v1/exams",
+            json={"subject": "Toan", "title": "Giua ky", "duration_minutes": 60},
+        )
+        assert res_exam.status_code == 403
+
+        res_quiz = await client.post(
+            "/api/v1/quizzes/custom",
+            json={
+                "title": "De thi 1",
+                "questions": [
+                    {
+                        "question_text": "1+1=?",
+                        "options": ["1", "2"],
+                        "correct_answer": "2",
+                    }
+                ],
+            },
+        )
+        assert res_quiz.status_code == 403
+
+        # Grant active lecturer subscription -> 6th classroom & exam creation succeed
+        async with session_factory() as upgrade:
+            now = datetime.now(UTC).replace(tzinfo=None)
+            upgrade.add(
+                Subscription(
+                    user_id="lecturer-1",
+                    plan_code="lecturer",
+                    status="active",
+                    starts_at=now,
+                    expires_at=now + timedelta(days=30),
+                )
+            )
+            await upgrade.commit()
+
+        res_cls_ok = await client.post(
+            "/api/v1/classrooms",
+            json={"name": "Lop thu 6", "subject": "Toan"},
+        )
+        assert res_cls_ok.status_code == 201
+
+        res_exam_ok = await client.post(
+            "/api/v1/exams",
+            json={"subject": "Toan", "title": "Giua ky", "duration_minutes": 60},
+        )
+        assert res_exam_ok.status_code == 201
+    finally:
+        await engine.dispose()
+

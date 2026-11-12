@@ -77,8 +77,10 @@ function UsersPage() {
           const haystack = `${u.name || ''} ${u.email || ''} ${u.id || ''} ${u.role || ''}`.toLowerCase()
           const matchPlan =
             planFilter === 'all' ||
-            (planFilter === 'pro' && u.isStudent && u.isPro) ||
-            (planFilter === 'free' && u.isStudent && !u.isPro)
+            (planFilter === 'pro' && u.canManagePlan && u.isPro) ||
+            (planFilter === 'student_pro' && u.isStudent && u.isPro) ||
+            (planFilter === 'lecturer_pro' && u.isLecturer && u.isPro) ||
+            (planFilter === 'free' && u.canManagePlan && !u.isPro)
           return (
             // Ẩn tài khoản đã vô hiệu hóa, trừ khi lọc đúng trạng thái đó.
             (status === 'deleted' || !isDeleted(u)) &&
@@ -113,18 +115,18 @@ function UsersPage() {
   }
 
   const handleRevokePro = async (u) => {
-    const ok = window.confirm(
-      `Xác nhận cắt quyền Pro của sinh viên "${u.name}"?\n\nSinh viên này sẽ quay lại gói Free (giới hạn 200.000 tokens/ngày).`
-    )
-    if (!ok) return
+    const confirmMsg = u.isLecturer
+      ? `Xác nhận cắt Gói Giảng viên của "${u.name}"?\n\nGiảng viên này sẽ quay lại gói Free (tối đa 5 lớp học, khóa Lịch thi & Nhập đề Word).`
+      : `Xác nhận cắt quyền Pro của sinh viên "${u.name}"?\n\nSinh viên này sẽ quay lại gói Free (giới hạn 200.000 tokens/ngày).`
+    if (!window.confirm(confirmMsg)) return
     await revokePro(u.id)
   }
 
   const handleGrantPro = async (u) => {
-    const ok = window.confirm(
-      `Cấp quyền Pro (30 ngày) cho sinh viên "${u.name}"?\n\nSinh viên sẽ được nâng hạn mức lên 900.000 tokens/ngày.`
-    )
-    if (!ok) return
+    const confirmMsg = u.isLecturer
+      ? `Cấp Gói Giảng viên (30 ngày) cho "${u.name}"?\n\nGiảng viên sẽ được tạo tối đa 50 lớp học và mở khóa toàn bộ chức năng giảng viên.`
+      : `Cấp quyền Pro (30 ngày) cho sinh viên "${u.name}"?\n\nSinh viên sẽ được nâng hạn mức lên 900.000 tokens/ngày.`
+    if (!window.confirm(confirmMsg)) return
     await grantPro(u.id)
   }
 
@@ -133,7 +135,7 @@ function UsersPage() {
       <div className="dmrs-page-head">
         <div>
           <h1 className="dmrs-page-title">Quản lý người dùng</h1>
-          <p className="dmrs-page-sub">Toàn quyền xem/sửa/xóa, kiểm soát gói Free/Pro của sinh viên và phân quyền hệ thống.</p>
+          <p className="dmrs-page-sub">Toàn quyền xem/sửa/xóa, kiểm soát gói dịch vụ Sinh viên/Giảng viên và phân quyền hệ thống.</p>
         </div>
         <div className="dmrs-head-actions">
           <button className="dmrs-btn dmrs-btn--light" onClick={() => comingSoon('Xuất báo cáo đang được phát triển 🚧')}>
@@ -172,8 +174,10 @@ function UsersPage() {
             onChange={(e) => setPlanFilter(e.target.value)}
           >
             <option value="all">Tất cả gói</option>
-            <option value="pro">Gói Pro (Sinh viên) ⭐</option>
-            <option value="free">Gói Free (Sinh viên)</option>
+            <option value="pro">Đã mua gói ⭐ (SV + GV)</option>
+            <option value="student_pro">Gói Pro Sinh viên (39k)</option>
+            <option value="lecturer_pro">Gói Giảng viên (129k · 50 lớp)</option>
+            <option value="free">Gói Free (SV + GV)</option>
           </select>
         </div>
         <div className="dmrs-select">
@@ -235,11 +239,11 @@ function UsersPage() {
                       <StatusBadge variant={ROLE_VARIANT[u.role] || 'neutral'}>{u.role}</StatusBadge>
                     </td>
                     <td>
-                      {u.isStudent ? (
+                      {u.canManagePlan ? (
                         u.isPro ? (
                           <div className="dmrs-plan-badge-box">
                             <span className="dmrs-badge dmrs-badge--pro">
-                              ⭐ Gói Pro
+                              {u.isLecturer ? '⭐ Gói GV (50 lớp)' : '⭐ Gói Pro'}
                             </span>
                             {u.subscriptionExpiresAt && (
                               <span className="dmrs-plan-expiry">HSD: {formatDate(u.subscriptionExpiresAt)}</span>
@@ -248,7 +252,7 @@ function UsersPage() {
                         ) : (
                           <div className="dmrs-plan-badge-box">
                             <span className="dmrs-badge dmrs-badge--free">
-                              Gói Free
+                              {u.isLecturer ? 'Free (5 lớp)' : 'Gói Free'}
                             </span>
                           </div>
                         )
@@ -265,24 +269,24 @@ function UsersPage() {
                     </td>
                     <td className="dmrs-col-actions">
                       <div className="dmrs-row-actions">
-                        {u.isStudent && (
+                        {u.canManagePlan && (
                           u.isPro ? (
                             <button
                               type="button"
                               className="dmrs-plan-btn dmrs-plan-btn--revoke"
                               onClick={() => handleRevokePro(u)}
-                              title="Cắt quyền Pro — Chuyển sinh viên này về gói Free"
+                              title={u.isLecturer ? 'Cắt Gói Giảng viên — Chuyển về Free (5 lớp)' : 'Cắt quyền Pro — Chuyển sinh viên này về gói Free'}
                             >
-                              Cắt quyền Pro
+                              {u.isLecturer ? 'Cắt gói GV' : 'Cắt quyền Pro'}
                             </button>
                           ) : (
                             <button
                               type="button"
                               className="dmrs-plan-btn dmrs-plan-btn--grant"
                               onClick={() => handleGrantPro(u)}
-                              title="Cấp quyền Pro (30 ngày) cho sinh viên"
+                              title={u.isLecturer ? 'Cấp Gói Giảng viên (30 ngày · 50 lớp + full chức năng)' : 'Cấp quyền Pro (30 ngày) cho sinh viên'}
                             >
-                              <SparklesIcon size={14} /> Cấp Pro
+                              <SparklesIcon size={14} /> {u.isLecturer ? 'Cấp gói GV' : 'Cấp Pro'}
                             </button>
                           )
                         )}

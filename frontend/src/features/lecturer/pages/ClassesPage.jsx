@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import {
   getClassrooms,
   createClassroom,
   updateClassroom,
   deleteClassroom,
 } from '../services/classroomService'
+import {
+  getBillingStatus,
+  startLecturerCheckout,
+  reconcileProPayment,
+} from '../../student/services/billingService'
 import {
   PlusIcon,
   BookOpenIcon,
@@ -14,14 +19,33 @@ import {
   EditIcon,
   TrashIcon,
   SearchIcon,
+  SparklesIcon,
 } from '../../../components/common/icons.jsx'
 import { notify } from '../../../components/common/toast.jsx'
 
+function formatPlanDate(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 export default function ClassesPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [classrooms, setClassrooms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [billing, setBilling] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(true)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [paymentCheckBusy, setPaymentCheckBusy] = useState(false)
+  const [paymentCheckStatus, setPaymentCheckStatus] = useState(null)
+  const [paymentCheckError, setPaymentCheckError] = useState('')
   const [search, setSearch] = useState('')
+
+  const paymentResult = searchParams.get('payment') || (searchParams.get('status') === 'PAID' ? 'success' : null)
+  const paymentOrderCode = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
 
   // Modal tạo lớp học
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -42,18 +66,100 @@ export default function ClassesPage() {
   const loadClassrooms = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getClassrooms()
+      const [data, billingData] = await Promise.all([
+        getClassrooms(),
+        getBillingStatus().catch(() => null),
+      ])
       setClassrooms(data)
+      if (billingData) setBilling(billingData)
     } catch {
       notify('Không thể tải danh sách lớp học.', 'error')
     } finally {
       setLoading(false)
+      setBillingLoading(false)
     }
   }, [])
 
   useEffect(() => {
     loadClassrooms()
   }, [loadClassrooms])
+
+  useEffect(() => {
+    const orderCode = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
+    if (paymentResult === 'success' || orderCode) {
+      if (orderCode) {
+        reconcileProPayment(orderCode)
+          .then((res) => {
+            if (res?.status === 'paid') {
+              getBillingStatus().then(setBilling).catch(() => {})
+            }
+          })
+          .catch(() => {
+            getBillingStatus().then(setBilling).catch(() => {})
+          })
+      } else {
+        getBillingStatus().then(setBilling).catch(() => {})
+      }
+    }
+    if (paymentResult !== 'pending') return undefined
+    let attempts = 0
+    const timer = window.setInterval(async () => {
+      attempts += 1
+      try {
+        const status = await getBillingStatus()
+        setBilling(status)
+        if (status?.is_pro || attempts >= 20) window.clearInterval(timer)
+      } catch {
+        if (attempts >= 20) window.clearInterval(timer)
+      }
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [paymentResult])
+
+  const checkPayment = async () => {
+    if (!paymentOrderCode || paymentCheckBusy) return
+    setPaymentCheckError('')
+    setPaymentCheckBusy(true)
+    try {
+      const result = await reconcileProPayment(paymentOrderCode)
+      setPaymentCheckStatus(result.status)
+      if (result.status === 'paid') {
+        const nextBilling = await getBillingStatus()
+        setBilling(nextBilling)
+        notify('Đã kích hoạt Gói Giảng viên thành công!')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      setPaymentCheckError(typeof detail === 'string' ? detail : detail?.message || 'Chưa kiểm tra được giao dịch.')
+    } finally {
+      setPaymentCheckBusy(false)
+    }
+  }
+
+  const handleUpgradeLecturer = async () => {
+    setCheckoutBusy(true)
+    try {
+      const returnTo = `${location.pathname}${location.search || ''}`
+      const res = await startLecturerCheckout(returnTo)
+      const redirectUrl = res?.checkout_url || res?.payment_url
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+      } else {
+        notify('Không lấy được liên kết thanh toán.', 'error')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      notify(typeof detail === 'string' ? detail : detail?.message || 'Lỗi khi kết nối cổng thanh toán.', 'error')
+    } finally {
+      setCheckoutBusy(false)
+    }
+  }
+
+  const isPaidLecturer = Boolean(billing?.is_pro)
+  const currentClasses = billing?.current_classes ?? classrooms.length
+  const maxClasses = billing?.max_classes ?? (isPaidLecturer ? 50 : 5)
+  const atLimit = !billingLoading && currentClasses >= maxClasses
+  const expiresLabel = formatPlanDate(billing?.expires_at)
 
   // Xử lý tạo mới
   const handleCreateSubmit = async (e) => {
@@ -82,6 +188,7 @@ export default function ClassesPage() {
     } catch (err) {
       const msg = err?.response?.data?.detail || 'Tạo lớp học thất bại.'
       setError(typeof msg === 'string' ? msg : 'Lỗi khi tạo lớp học.')
+      getBillingStatus().then(setBilling).catch(() => {})
     } finally {
       setSaving(false)
     }
@@ -134,6 +241,7 @@ export default function ClassesPage() {
       await deleteClassroom(c.id)
       setClassrooms((prev) => prev.filter((item) => item.id !== c.id))
       notify(`Đã xóa lớp "${c.name}".`)
+      getBillingStatus().then(setBilling).catch(() => {})
     } catch {
       notify('Xóa lớp học thất bại.', 'error')
     }
@@ -193,6 +301,91 @@ export default function ClassesPage() {
           </button>
         </div>
       </div>
+
+      {/* Plan Quota Banner */}
+      {!billingLoading && (
+        <div
+          style={{
+            backgroundColor: isPaidLecturer ? '#ECFDF5' : atLimit ? '#FEF2F2' : '#FFFBEB',
+            border: '2.5px solid #000000',
+            boxShadow: '3px 3px 0px #000000',
+            borderRadius: 12,
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 10px',
+                  borderRadius: 999,
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  border: '1.5px solid #000000',
+                  backgroundColor: isPaidLecturer ? '#E5F970' : '#ffffff',
+                  color: '#000000',
+                }}
+              >
+                {isPaidLecturer ? '⭐ GÓI GIẢNG VIÊN' : 'GÓI MIỄN PHÍ'}
+              </span>
+              <strong style={{ fontSize: 14, color: '#0f172a' }}>
+                Đã tạo {currentClasses} / {maxClasses} lớp học
+                {isPaidLecturer && expiresLabel ? ` · HSD: ${expiresLabel}` : ''}
+              </strong>
+            </div>
+            <div style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
+              {isPaidLecturer
+                ? 'Bạn có thể tạo tối đa 50 lớp học và sử dụng đầy đủ chức năng Lịch thi trắc nghiệm + Nhập đề Word (.docx).'
+                : atLimit
+                  ? 'Bạn đã đạt giới hạn 5 lớp của gói Miễn phí. Nâng cấp Gói Giảng viên (129.000đ/tháng) để tạo tối đa 50 lớp và mở khóa full chức năng giảng viên.'
+                  : 'Gói Miễn phí tạo tối đa 5 lớp học. Nâng cấp Gói Giảng viên (129.000đ/tháng) để tạo tới 50 lớp & mở khóa Lịch thi + Nhập đề .docx.'}
+            </div>
+            {(paymentResult === 'pending' || paymentCheckStatus || paymentCheckError) && !isPaidLecturer && (
+              <div style={{ fontSize: 12.5, color: paymentCheckError ? '#dc2626' : '#b45309', fontWeight: 700 }}>
+                {paymentCheckError ||
+                  (paymentCheckStatus === 'pending'
+                    ? 'Giao dịch đang chờ cổng thanh toán xác nhận...'
+                    : paymentResult === 'pending'
+                      ? 'Đang chờ xác nhận thanh toán...'
+                      : null)}
+              </div>
+            )}
+          </div>
+
+          {!isPaidLecturer && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {paymentOrderCode && (
+                <button
+                  type="button"
+                  className="lec-btn-cancel"
+                  disabled={paymentCheckBusy}
+                  onClick={checkPayment}
+                  style={{ fontSize: 13, padding: '8px 14px' }}
+                >
+                  {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán'}
+                </button>
+              )}
+              <button
+                type="button"
+                className="lec-btn-submit"
+                disabled={checkoutBusy}
+                onClick={handleUpgradeLecturer}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#3b66f5' }}
+              >
+                <SparklesIcon size={16} />
+                <span>{checkoutBusy ? 'Đang chuyển thanh toán...' : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Info Badge */}
       <div
@@ -596,6 +789,77 @@ export default function ClassesPage() {
               </button>
             </div>
 
+            {atLimit ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div
+                  style={{
+                    backgroundColor: '#FEF2F2',
+                    border: '2px solid #dc2626',
+                    borderRadius: 10,
+                    padding: '14px 16px',
+                    fontSize: 13.5,
+                    color: '#991b1b',
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {isPaidLecturer
+                    ? `Bạn đã đạt giới hạn tối đa ${maxClasses} lớp học của Gói Giảng viên.`
+                    : `Bạn đã tạo ${currentClasses}/${maxClasses} lớp học miễn phí. Nâng cấp Gói Giảng viên (129.000đ/tháng) để tạo tối đa 50 lớp và mở khóa Lịch thi trắc nghiệm + Nhập đề file Word (.docx).`}
+                </div>
+                <div
+                  className="lec-brutal-modal-footer"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 12,
+                    marginTop: 4,
+                    paddingTop: 14,
+                    borderTop: '1.5px solid #e2e8f0',
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="lec-brutal-btn-cancel"
+                    onClick={() => setShowCreateModal(false)}
+                    style={{
+                      background: '#ffffff',
+                      color: '#000000',
+                      border: '2px solid #000000',
+                      boxShadow: '2.5px 2.5px 0px #000000',
+                      borderRadius: 8,
+                      padding: '9px 18px',
+                      fontWeight: 700,
+                      fontSize: 14,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Đóng
+                  </button>
+                  {!isPaidLecturer && (
+                    <button
+                      type="button"
+                      className="lec-brutal-btn-confirm"
+                      disabled={checkoutBusy}
+                      onClick={handleUpgradeLecturer}
+                      style={{
+                        background: '#3b66f5',
+                        color: '#ffffff',
+                        border: '2px solid #000000',
+                        boxShadow: '2.5px 2.5px 0px #000000',
+                        borderRadius: 8,
+                        padding: '9px 20px',
+                        fontWeight: 700,
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {checkoutBusy ? 'Đang chuyển thanh toán...' : 'Nâng cấp · 129.000đ/tháng'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleCreateSubmit} className="lec-brutal-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="lec-brutal-form-group" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label className="lec-brutal-label" style={{ fontSize: 13.5, fontWeight: 700, color: '#000000' }}>
@@ -713,9 +977,34 @@ export default function ClassesPage() {
               </div>
 
               {error && (
-                <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0 0 0', fontWeight: 600 }}>
-                  {error}
-                </p>
+                <div
+                  style={{
+                    backgroundColor: '#FEF2F2',
+                    border: '1.5px solid #dc2626',
+                    borderRadius: 8,
+                    padding: '8px 12px',
+                    color: '#dc2626',
+                    fontSize: 13,
+                    margin: '4px 0 0 0',
+                    fontWeight: 600,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <span>{error}</span>
+                  {!isPaidLecturer && (
+                    <button
+                      type="button"
+                      className="lec-btn-submit"
+                      disabled={checkoutBusy}
+                      onClick={handleUpgradeLecturer}
+                      style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: 12.5 }}
+                    >
+                      {checkoutBusy ? 'Đang chuyển...' : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}
+                    </button>
+                  )}
+                </div>
               )}
 
               <div
@@ -768,6 +1057,7 @@ export default function ClassesPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

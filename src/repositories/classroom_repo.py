@@ -49,6 +49,13 @@ async def list_classrooms(
     return list(result.scalars().all())
 
 
+async def count_classrooms_by_owner(session: AsyncSession, owner_id: str) -> int:
+    result = await session.execute(
+        select(func.count(Classroom.id)).where(Classroom.created_by == owner_id)
+    )
+    return int(result.scalar_one() or 0)
+
+
 async def update_classroom(
     session: AsyncSession,
     classroom: Classroom,

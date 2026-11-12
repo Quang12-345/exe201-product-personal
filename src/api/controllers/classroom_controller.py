@@ -98,6 +98,11 @@ async def list_classrooms_controller(
 async def create_classroom_controller(
     session: AsyncSession, user: User, payload: ClassroomCreate
 ) -> ClassroomResponse:
+    if _role_name(user) in ("lecturer", "GV"):
+        from src.services.billing import check_lecturer_class_limit
+
+        await check_lecturer_class_limit(session, user.id)
+
     code = (payload.code or "").strip().upper()
     if not code:
         code = _generate_classroom_code(payload.name, payload.subject)

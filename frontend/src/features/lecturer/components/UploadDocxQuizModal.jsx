@@ -4,9 +4,10 @@ import {
   createCustomQuiz,
   downloadSampleQuizTemplate,
 } from '../services/examService'
+import { startLecturerCheckout } from '../../student/services/billingService'
 import { notify } from '../../../components/common/toast.jsx'
 
-function UploadDocxQuizModal({ isOpen, onClose, onSuccess }) {
+function UploadDocxQuizModal({ isOpen, onClose, onSuccess, onUpgradeClick, upgradeBusy = false }) {
   const [file, setFile] = useState(null)
   const [parsing, setParsing] = useState(false)
   const [parsedData, setParsedData] = useState(null)
@@ -14,20 +15,47 @@ function UploadDocxQuizModal({ isOpen, onClose, onSuccess }) {
   const [questions, setQuestions] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [requiresUpgrade, setRequiresUpgrade] = useState(false)
+  const [localCheckoutBusy, setLocalCheckoutBusy] = useState(false)
   const fileInputRef = useRef(null)
 
   if (!isOpen) return null
+
+  const triggerUpgrade = async () => {
+    if (onUpgradeClick) {
+      await onUpgradeClick()
+      return
+    }
+    setLocalCheckoutBusy(true)
+    try {
+      const returnTo = typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search || ''}` : '/lecturer/exams'
+      const res = await startLecturerCheckout(returnTo)
+      const redirectUrl = res?.checkout_url || res?.payment_url
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+      } else {
+        notify('Không lấy được liên kết thanh toán.', 'error')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      notify(typeof detail === 'string' ? detail : 'Lỗi khi kết nối cổng thanh toán.', 'error')
+    } finally {
+      setLocalCheckoutBusy(false)
+    }
+  }
 
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files?.[0]
     if (!selectedFile) return
     if (!selectedFile.name.toLowerCase().endsWith('.docx')) {
       setError('Vui lòng chọn file định dạng Microsoft Word (.docx).')
+      setRequiresUpgrade(false)
       return
     }
 
     setFile(selectedFile)
     setError('')
+    setRequiresUpgrade(false)
     setParsing(true)
     try {
       const data = await parseDocxQuiz(selectedFile)
@@ -44,6 +72,7 @@ function UploadDocxQuizModal({ isOpen, onClose, onSuccess }) {
       notify(`Đã nhận diện thành công ${data.total} câu hỏi trắc nghiệm!`)
     } catch (err) {
       const detail = err?.response?.data?.detail
+      setRequiresUpgrade(err?.response?.status === 403)
       setError(typeof detail === 'string' ? detail : 'Không thể bóc tách file Word. Vui lòng kiểm tra lại định dạng.')
       setParsedData(null)
       setQuestions([])
@@ -70,15 +99,18 @@ function UploadDocxQuizModal({ isOpen, onClose, onSuccess }) {
   const handleSaveQuiz = async () => {
     if (!title.trim()) {
       setError('Vui lòng nhập tiêu đề cho bộ đề thi.')
+      setRequiresUpgrade(false)
       return
     }
     if (questions.length === 0) {
       setError('Chưa có câu hỏi nào để lưu.')
+      setRequiresUpgrade(false)
       return
     }
 
     setSaving(true)
     setError('')
+    setRequiresUpgrade(false)
     try {
       const payload = {
         title: title.trim(),
@@ -95,6 +127,7 @@ function UploadDocxQuizModal({ isOpen, onClose, onSuccess }) {
       onClose()
     } catch (err) {
       const detail = err?.response?.data?.detail
+      setRequiresUpgrade(err?.response?.status === 403)
       setError(typeof detail === 'string' ? detail : 'Lưu bộ đề thất bại. Vui lòng thử lại.')
     } finally {
       setSaving(false)
@@ -251,9 +284,25 @@ function UploadDocxQuizModal({ isOpen, onClose, onSuccess }) {
                 borderRadius: 8,
                 padding: '10px 14px',
                 fontSize: 13,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
               }}
             >
-              {error}
+              <span>{error}</span>
+              {requiresUpgrade && (
+                <button
+                  type="button"
+                  disabled={upgradeBusy || localCheckoutBusy}
+                  onClick={triggerUpgrade}
+                  className="lec-btn-submit"
+                  style={{ alignSelf: 'flex-start', padding: '7px 14px', fontSize: 12.5 }}
+                >
+                  {upgradeBusy || localCheckoutBusy
+                    ? 'Đang chuyển thanh toán...'
+                    : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}
+                </button>
+              )}
             </div>
           )}
 

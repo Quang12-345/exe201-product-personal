@@ -1,19 +1,33 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getPaymentReceipt, getBillingStatus } from '../services/billingService'
+import '../styles/student.css'
 
 export default function PaymentSuccessPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
 
   const orderCodeParam = searchParams.get('order_code') || searchParams.get('orderCode')
-  const returnTo = searchParams.get('return_to') || '/student/chat'
+  const searchReturnTo = searchParams.get('return_to') || ''
 
   const [loading, setLoading] = useState(true)
   const [receipt, setReceipt] = useState(null)
   const [error, setError] = useState('')
   const [countdown, setCountdown] = useState(10)
   const [pausedCountdown, setPausedCountdown] = useState(false)
+
+  const isLecturer =
+    receipt?.plan_code === 'lecturer_monthly' ||
+    searchParams.get('plan_code') === 'lecturer_monthly' ||
+    location.pathname.startsWith('/lecturer') ||
+    searchReturnTo.startsWith('/lecturer')
+
+  const resolvedReturnTo =
+    searchReturnTo || receipt?.return_to || (isLecturer ? '/lecturer/classes' : '/student/chat')
+  const dashboardPath = isLecturer ? '/lecturer' : '/student'
+  const fallbackAmount = isLecturer ? 129000 : 39000
+  const fallbackPlanName = isLecturer ? 'Gói Giảng Viên (30 ngày)' : 'Gói Pro Sinh Viên (30 ngày)'
 
   const fetchReceipt = async () => {
     if (!orderCodeParam) {
@@ -41,11 +55,11 @@ export default function PaymentSuccessPage() {
     fetchReceipt()
   }, [orderCodeParam])
 
-  // Đếm ngược tự động chuyển về trang học tập
+  // Đếm ngược tự động chuyển về trang làm việc
   useEffect(() => {
     if (loading || error || pausedCountdown) return undefined
     if (countdown <= 0) {
-      navigate(returnTo)
+      navigate(resolvedReturnTo)
       return undefined
     }
 
@@ -54,10 +68,10 @@ export default function PaymentSuccessPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [countdown, loading, error, pausedCountdown, navigate, returnTo])
+  }, [countdown, loading, error, pausedCountdown, navigate, resolvedReturnTo])
 
   const formatCurrency = (val) => {
-    if (!val && val !== 0) return '99.000 đ'
+    if (!val && val !== 0) return isLecturer ? '129.000 đ' : '39.000 đ'
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
   }
 
@@ -75,7 +89,9 @@ export default function PaymentSuccessPage() {
           <span className="st-payment-badge">Giao dịch thành công</span>
           <h1 className="st-payment-title">Thanh Toán Thành Công!</h1>
           <p className="st-payment-subtitle">
-            Gói Pro đã được kích hoạt thành công trên tài khoản của bạn.
+            {isLecturer
+              ? 'Gói Giảng viên đã được kích hoạt thành công trên tài khoản của bạn.'
+              : 'Gói Pro đã được kích hoạt thành công trên tài khoản của bạn.'}
           </p>
         </div>
 
@@ -83,7 +99,7 @@ export default function PaymentSuccessPage() {
         <div className="st-payment-amount-box">
           <span className="st-amount-label">Số tiền đã thanh toán</span>
           <div className="st-amount-value">
-            {formatCurrency(receipt?.amount || 99000)}
+            {formatCurrency(receipt?.amount || fallbackAmount)}
           </div>
           <span className="st-amount-status">ĐÃ CHUYỂN KHOẢN VÀO TÀI KHOẢN</span>
         </div>
@@ -104,7 +120,7 @@ export default function PaymentSuccessPage() {
           <div className="st-receipt-row">
             <span className="st-receipt-label">Gói dịch vụ</span>
             <span className="st-receipt-value is-bold">
-              {receipt?.plan_name || 'Gói Pro Sinh Viên (30 ngày)'}
+              {receipt?.plan_name || fallbackPlanName}
             </span>
           </div>
 
@@ -141,28 +157,47 @@ export default function PaymentSuccessPage() {
           <div className="st-receipt-row">
             <span className="st-receipt-label">Trạng thái</span>
             <span className="st-receipt-value is-success-tag">
-              ✓ Thành công · Gói Pro kích hoạt
+              {isLecturer ? '✓ Thành công · Gói Giảng viên kích hoạt' : '✓ Thành công · Gói Pro kích hoạt'}
             </span>
           </div>
         </div>
 
-        {/* Quyền lợi Gói Pro */}
+        {/* Quyền lợi Gói */}
         <div className="st-pro-perks-box">
-          <div className="st-perks-title">Quyền lợi Gói Pro sẵn sàng cho bạn:</div>
-          <ul className="st-perks-list">
-            <li>
-              <span className="st-perk-bullet">⚡</span>
-              <span><strong>Không giới hạn Tokens:</strong> Thỏa sức hỏi đáp AI chuyên sâu mỗi ngày.</span>
-            </li>
-            <li>
-              <span className="st-perk-bullet">📚</span>
-              <span><strong>Tài liệu học tập:</strong> Phân tích tài liệu PDF, DOCX dung lượng lớn.</span>
-            </li>
-            <li>
-              <span className="st-perk-bullet">🎯</span>
-              <span><strong>Ôn thi thông minh:</strong> Tự động sinh đề thi, trắc nghiệm và lộ trình cá nhân.</span>
-            </li>
-          </ul>
+          <div className="st-perks-title">
+            {isLecturer ? 'Quyền lợi Gói Giảng viên sẵn sàng cho bạn:' : 'Quyền lợi Gói Pro sẵn sàng cho bạn:'}
+          </div>
+          {isLecturer ? (
+            <ul className="st-perks-list">
+              <li>
+                <span className="st-perk-bullet">🏫</span>
+                <span><strong>Tối đa 50 lớp học:</strong> Tự do tạo và quản lý tất cả các lớp học, sinh viên và tài liệu.</span>
+              </li>
+              <li>
+                <span className="st-perk-bullet">📝</span>
+                <span><strong>Mở khóa Lịch thi trắc nghiệm:</strong> Tạo, chỉnh sửa và giao đề thi cho từng lớp học.</span>
+              </li>
+              <li>
+                <span className="st-perk-bullet">📄</span>
+                <span><strong>Nhập đề Word (.docx) &amp; AI:</strong> Tải nhanh đề thi từ file Word hoặc tạo câu hỏi bằng AI.</span>
+              </li>
+            </ul>
+          ) : (
+            <ul className="st-perks-list">
+              <li>
+                <span className="st-perk-bullet">⚡</span>
+                <span><strong>Không giới hạn Tokens:</strong> Thỏa sức hỏi đáp AI chuyên sâu mỗi ngày.</span>
+              </li>
+              <li>
+                <span className="st-perk-bullet">📚</span>
+                <span><strong>Tài liệu học tập:</strong> Phân tích tài liệu PDF, DOCX dung lượng lớn.</span>
+              </li>
+              <li>
+                <span className="st-perk-bullet">🎯</span>
+                <span><strong>Ôn thi thông minh:</strong> Tự động sinh đề thi, trắc nghiệm và lộ trình cá nhân.</span>
+              </li>
+            </ul>
+          )}
         </div>
 
         {/* Thông báo lỗi nếu có */}
@@ -180,9 +215,11 @@ export default function PaymentSuccessPage() {
           <button
             type="button"
             className="st-btn-primary-glow"
-            onClick={() => navigate(returnTo)}
+            onClick={() => navigate(resolvedReturnTo)}
           >
-            <span>Quay về trang web để sử dụng Gói Pro</span>
+            <span>
+              {isLecturer ? 'Quay về trang web để sử dụng Gói Giảng viên' : 'Quay về trang web để sử dụng Gói Pro'}
+            </span>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="5" y1="12" x2="19" y2="12" />
               <polyline points="12 5 19 12 12 19" />
@@ -192,9 +229,9 @@ export default function PaymentSuccessPage() {
           <button
             type="button"
             className="st-btn-secondary"
-            onClick={() => navigate('/student')}
+            onClick={() => navigate(dashboardPath)}
           >
-            Về Bảng Điều Khiển Học Tập
+            {isLecturer ? 'Về Bảng Điều Khiển Giảng Viên' : 'Về Bảng Điều Khiển Học Tập'}
           </button>
         </div>
 
@@ -205,7 +242,8 @@ export default function PaymentSuccessPage() {
               <span>Đã tạm dừng tự động chuyển trang.</span>
             ) : (
               <span>
-                Tự động quay về trang học tập sau <strong>{countdown}s</strong>...{' '}
+                {isLecturer ? 'Tự động quay về cổng giảng viên sau ' : 'Tự động quay về trang học tập sau '}
+                <strong>{countdown}s</strong>...{' '}
                 <button
                   type="button"
                   className="st-btn-pause"

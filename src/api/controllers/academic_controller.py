@@ -194,6 +194,11 @@ async def list_exams_controller(
 async def create_exam_controller(
     session: AsyncSession, user: User, payload: ExamCreate
 ) -> ExamResponse:
+    from src.services.billing import require_paid_lecturer_feature
+
+    await require_paid_lecturer_feature(
+        session, user, feature_name="Quản lý lịch thi trắc nghiệm"
+    )
     c_id = payload.classroom_id or None
     if not c_id and payload.subject:
         from src.repositories import classroom_repo
@@ -223,6 +228,11 @@ async def create_exam_controller(
 async def update_exam_controller(
     session: AsyncSession, user: User, exam_id: str, payload: ExamUpdate
 ) -> ExamResponse:
+    from src.services.billing import require_paid_lecturer_feature
+
+    await require_paid_lecturer_feature(
+        session, user, feature_name="Quản lý lịch thi trắc nghiệm"
+    )
     exam = await exam_repo.get_exam(session, exam_id)
     if exam is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy lịch thi.")
@@ -243,6 +253,11 @@ async def update_exam_controller(
 
 
 async def delete_exam_controller(session: AsyncSession, user: User, exam_id: str) -> dict:
+    from src.services.billing import require_paid_lecturer_feature
+
+    await require_paid_lecturer_feature(
+        session, user, feature_name="Quản lý lịch thi trắc nghiệm"
+    )
     exam = await exam_repo.get_exam(session, exam_id)
     if exam is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy lịch thi.")

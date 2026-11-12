@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import {
   getExams,
   createExam,
@@ -9,11 +10,18 @@ import {
 } from '../services/examService'
 import { getClassrooms } from '../services/classroomService'
 import {
+  getBillingStatus,
+  startLecturerCheckout,
+  reconcileProPayment,
+} from '../../student/services/billingService'
+import {
   PlusIcon,
   EditIcon,
   TrashIcon,
   CalendarIcon,
   BookOpenIcon,
+  LockIcon,
+  SparklesIcon,
 } from '../../../components/common/icons.jsx'
 import { notify } from '../../../components/common/toast.jsx'
 import IconSelect from '../../../components/common/IconSelect.jsx'
@@ -39,10 +47,18 @@ function toLocalInput(iso) {
 }
 
 function LecturerExams() {
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [exams, setExams] = useState([])
   const [classrooms, setClassrooms] = useState([])
   const [resources, setResources] = useState({ quizzes: [] })
   const [loading, setLoading] = useState(true)
+  const [billing, setBilling] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(true)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [paymentCheckBusy, setPaymentCheckBusy] = useState(false)
+  const [paymentCheckStatus, setPaymentCheckStatus] = useState(null)
+  const [paymentCheckError, setPaymentCheckError] = useState('')
   const [filter, setFilter] = useState('all')
   const [form, setForm] = useState(null)
   const [editingId, setEditingId] = useState(null)
@@ -50,6 +66,9 @@ function LecturerExams() {
   const [error, setError] = useState('')
   const [customSubjectMode, setCustomSubjectMode] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
+
+  const paymentResult = searchParams.get('payment') || (searchParams.get('status') === 'PAID' ? 'success' : null)
+  const paymentOrderCode = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
 
   const handleQuizUploaded = (newQuiz) => {
     setResources((prev) => ({
@@ -66,23 +85,102 @@ function LecturerExams() {
     setForm((f) => (f ? { ...f, quiz_id: newQuiz.id } : f))
   }
 
-  // Tải danh sách lớp học và các bộ đề Quiz của giảng viên
+  // Tải danh sách lớp học, bộ đề Quiz và trạng thái Gói Giảng viên
   const loadMeta = useCallback(async () => {
     try {
-      const [clsData, resData] = await Promise.all([
+      const [clsData, resData, billingData] = await Promise.all([
         getClassrooms().catch(() => []),
         getExamResources().catch(() => ({ quizzes: [] })),
+        getBillingStatus().catch(() => null),
       ])
       setClassrooms(clsData || [])
       setResources(resData || { quizzes: [] })
+      if (billingData) setBilling(billingData)
     } catch {
       // bỏ qua lỗi
+    } finally {
+      setBillingLoading(false)
     }
   }, [])
 
   useEffect(() => {
     loadMeta()
   }, [loadMeta])
+
+  useEffect(() => {
+    const code = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
+    if (paymentResult === 'success' || code) {
+      if (code) {
+        reconcileProPayment(code)
+          .then((res) => {
+            if (res?.status === 'paid') {
+              getBillingStatus().then(setBilling).catch(() => {})
+              getExamResources().then((r) => setResources(r || { quizzes: [] })).catch(() => {})
+            }
+          })
+          .catch(() => {
+            getBillingStatus().then(setBilling).catch(() => {})
+          })
+      } else {
+        getBillingStatus().then(setBilling).catch(() => {})
+      }
+    }
+    if (paymentResult !== 'pending') return undefined
+    let attempts = 0
+    const timer = window.setInterval(async () => {
+      attempts += 1
+      try {
+        const status = await getBillingStatus()
+        setBilling(status)
+        if (status?.is_pro || attempts >= 20) window.clearInterval(timer)
+      } catch {
+        if (attempts >= 20) window.clearInterval(timer)
+      }
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [paymentResult])
+
+  const checkPayment = async () => {
+    if (!paymentOrderCode || paymentCheckBusy) return
+    setPaymentCheckError('')
+    setPaymentCheckBusy(true)
+    try {
+      const result = await reconcileProPayment(paymentOrderCode)
+      setPaymentCheckStatus(result.status)
+      if (result.status === 'paid') {
+        const nextBilling = await getBillingStatus()
+        setBilling(nextBilling)
+        notify('Đã kích hoạt Gói Giảng viên thành công!')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      setPaymentCheckError(typeof detail === 'string' ? detail : detail?.message || 'Chưa kiểm tra được giao dịch.')
+    } finally {
+      setPaymentCheckBusy(false)
+    }
+  }
+
+  const handleUpgradeLecturer = async () => {
+    setCheckoutBusy(true)
+    try {
+      const returnTo = `${location.pathname}${location.search || ''}`
+      const res = await startLecturerCheckout(returnTo)
+      const redirectUrl = res?.checkout_url || res?.payment_url
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+      } else {
+        notify('Không lấy được liên kết thanh toán.', 'error')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      notify(typeof detail === 'string' ? detail : detail?.message || 'Lỗi khi kết nối cổng thanh toán.', 'error')
+    } finally {
+      setCheckoutBusy(false)
+    }
+  }
+
+  const isPaidLecturer = Boolean(billing?.is_pro)
+  const isLocked = !billingLoading && Boolean(billing) && !isPaidLecturer
 
   // Danh sách các môn học mà giảng viên phụ trách (từ các lớp học)
   const managedSubjects = useMemo(() => {
@@ -121,6 +219,10 @@ function LecturerExams() {
   useEffect(() => { load() }, [load])
 
   const openAdd = () => {
+    if (isLocked) {
+      notify('Vui lòng nâng cấp Gói Giảng viên (129.000đ/tháng) để tạo lịch thi và nhập đề Word.', 'error')
+      return
+    }
     setEditingId(null)
     const firstClass = classrooms[0]
     setCustomSubjectMode(classrooms.length === 0)
@@ -133,6 +235,10 @@ function LecturerExams() {
   }
 
   const openEdit = (x) => {
+    if (isLocked) {
+      notify('Vui lòng nâng cấp Gói Giảng viên (129.000đ/tháng) để chỉnh sửa lịch thi.', 'error')
+      return
+    }
     setEditingId(x.id)
     const isKnown = classrooms.some((c) => c.id === x.classroom_id) || managedSubjects.includes(x.subject)
     setCustomSubjectMode(!isKnown)
@@ -190,13 +296,18 @@ function LecturerExams() {
   }
 
   const remove = async (x) => {
+    if (isLocked) {
+      notify('Vui lòng nâng cấp Gói Giảng viên (129.000đ/tháng) để xóa lịch thi.', 'error')
+      return
+    }
     if (!window.confirm(`Xóa lịch thi "${x.title}"?`)) return
     try {
       await deleteExam(x.id)
       setExams((prev) => prev.filter((e) => e.id !== x.id))
       notify('Xóa lịch thi thành công.')
-    } catch {
-      notify('Xóa thất bại. Vui lòng thử lại.', 'error')
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      notify(typeof detail === 'string' ? detail : 'Xóa thất bại. Vui lòng thử lại.', 'error')
     }
   }
 
@@ -209,10 +320,113 @@ function LecturerExams() {
             Quản lý lịch thi và gắn đề trắc nghiệm. Hệ thống tự động chấm điểm khi sinh viên nộp bài.
           </p>
         </div>
-        <button className="dmrs-btn dmrs-btn--primary" onClick={openAdd}>
-          <PlusIcon size={18} /> Thêm lịch thi
-        </button>
+        {isLocked ? (
+          <button
+            type="button"
+            className="dmrs-btn dmrs-btn--primary"
+            disabled={checkoutBusy}
+            onClick={handleUpgradeLecturer}
+          >
+            <SparklesIcon size={18} />
+            {checkoutBusy ? 'Đang chuyển thanh toán...' : 'Mở khóa Lịch thi · 129.000đ/tháng'}
+          </button>
+        ) : (
+          <button className="dmrs-btn dmrs-btn--primary" onClick={openAdd} disabled={billingLoading}>
+            <PlusIcon size={18} /> Thêm lịch thi
+          </button>
+        )}
       </div>
+
+      {isLocked && (
+        <div
+          style={{
+            backgroundColor: '#FFFBEB',
+            border: '2.5px solid #000000',
+            boxShadow: '4px 4px 0px #000000',
+            borderRadius: 16,
+            padding: '22px 24px',
+            marginBottom: 18,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: '#E5F970',
+                border: '2px solid #000000',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <LockIcon size={20} />
+            </span>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: '#0f172a' }}>
+                Tính năng Lịch thi &amp; Nhập đề Word (.docx) yêu cầu Gói Giảng viên
+              </h2>
+              <p style={{ margin: '2px 0 0', fontSize: 13.5, color: '#334155', fontWeight: 500 }}>
+                Tài khoản Miễn phí hỗ trợ tạo tối đa 5 lớp học, kho tài liệu cô lập và Sổ tay AI. Nâng cấp chỉ <strong>129.000đ/tháng</strong> để mở khóa toàn bộ quyền Giảng viên:
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 10,
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: '#0f172a',
+            }}
+          >
+            <div>✅ Tạo &amp; quản lý tối đa 50 lớp học</div>
+            <div>✅ Tổ chức Lịch thi trắc nghiệm tự chấm điểm</div>
+            <div>✅ Nhập đề thi từ file Word (.docx) &amp; AI Quiz</div>
+          </div>
+
+          {(paymentResult === 'pending' || paymentCheckStatus || paymentCheckError) && (
+            <div style={{ fontSize: 13, fontWeight: 700, color: paymentCheckError ? '#dc2626' : '#b45309' }}>
+              {paymentCheckError ||
+                (paymentCheckStatus === 'pending'
+                  ? 'Giao dịch đang chờ cổng thanh toán xác nhận...'
+                  : paymentResult === 'pending'
+                    ? 'Đang chờ xác nhận thanh toán...'
+                    : null)}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+            <button
+              type="button"
+              className="lec-btn-submit"
+              disabled={checkoutBusy}
+              onClick={handleUpgradeLecturer}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#3b66f5' }}
+            >
+              <SparklesIcon size={16} />
+              <span>{checkoutBusy ? 'Đang chuyển thanh toán...' : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}</span>
+            </button>
+            {paymentOrderCode && (
+              <button
+                type="button"
+                className="lec-btn-cancel"
+                disabled={paymentCheckBusy}
+                onClick={checkPayment}
+              >
+                {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="dmrs-card dmrs-toolbar">
         <IconSelect
@@ -461,17 +675,25 @@ function LecturerExams() {
                   </td>
                   
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    <button type="button" className="dmrs-icon-btn" title="Sửa" onClick={() => openEdit(x)}>
-                      <EditIcon size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="dmrs-icon-btn dmrs-icon-btn--danger"
-                      title="Xóa"
-                      onClick={() => remove(x)}
-                    >
-                      <TrashIcon size={16} />
-                    </button>
+                    {isLocked ? (
+                      <span className="dmrs-muted" title="Cần Gói Giảng viên để chỉnh sửa">
+                        <LockIcon size={15} />
+                      </span>
+                    ) : (
+                      <>
+                        <button type="button" className="dmrs-icon-btn" title="Sửa" onClick={() => openEdit(x)}>
+                          <EditIcon size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="dmrs-icon-btn dmrs-icon-btn--danger"
+                          title="Xóa"
+                          onClick={() => remove(x)}
+                        >
+                          <TrashIcon size={16} />
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))
@@ -483,6 +705,8 @@ function LecturerExams() {
         isOpen={uploadModalOpen}
         onClose={() => setUploadModalOpen(false)}
         onSuccess={handleQuizUploaded}
+        onUpgradeClick={handleUpgradeLecturer}
+        upgradeBusy={checkoutBusy}
       />
     </div>
   )

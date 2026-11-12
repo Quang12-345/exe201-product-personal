@@ -308,6 +308,12 @@ async def generate_quiz_controller(
     user: User | None = None,
 ) -> QuizItem:
     await require_pro_student(session, user)
+    if _role_name(user) in ("lecturer", "GV"):
+        from src.services.billing import require_paid_lecturer_feature
+
+        await require_paid_lecturer_feature(
+            session, user, feature_name="Tạo đề trắc nghiệm AI"
+        )
     request_id = None
     if user:
         from uuid import uuid4
@@ -513,10 +519,19 @@ async def download_sample_quiz_template_controller() -> Response:
     )
 
 
-async def parse_docx_quiz_controller(file: UploadFile) -> dict[str, Any]:
+async def parse_docx_quiz_controller(
+    session: AsyncSession,
+    user: User,
+    file: UploadFile,
+) -> dict[str, Any]:
     import io
 
+    from src.services.billing import require_paid_lecturer_feature
     from src.services.docx_quiz_parser import parse_docx_quiz
+
+    await require_paid_lecturer_feature(
+        session, user, feature_name="Nhập đề thi từ file Word (.docx)"
+    )
 
     if not file.filename or not file.filename.lower().endswith(".docx"):
         raise HTTPException(
@@ -551,7 +566,12 @@ async def import_docx_quiz_controller(
 ) -> QuizItem:
     import io
 
+    from src.services.billing import require_paid_lecturer_feature
     from src.services.docx_quiz_parser import parse_docx_quiz
+
+    await require_paid_lecturer_feature(
+        session, user, feature_name="Nhập đề thi từ file Word (.docx)"
+    )
 
     if not file.filename or not file.filename.lower().endswith(".docx"):
         raise HTTPException(
@@ -609,6 +629,11 @@ async def create_custom_quiz_controller(
     user: User,
     payload: CustomQuizCreate,
 ) -> QuizItem:
+    from src.services.billing import require_paid_lecturer_feature
+
+    await require_paid_lecturer_feature(
+        session, user, feature_name="Tạo đề thi trắc nghiệm"
+    )
     questions_data = [
         {
             "question_text": q.question_text,

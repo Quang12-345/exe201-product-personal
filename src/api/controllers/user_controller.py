@@ -50,7 +50,8 @@ async def build_user_response(
     document_count = 0
     if include_document_count:
         document_count = await user_repo.count_documents_by_owner(session, user.id)
-    role_name = user_role.name if user_role else None
+    raw_role_name = user_role.name if user_role else None
+    role_name = normalize_role_name(raw_role_name) or raw_role_name
 
     # Resolve subscription & plan
     sub = subscription
@@ -58,11 +59,13 @@ async def build_user_response(
     if sub is None and hasattr(session, "execute"):
         try:
             res = await session.execute(
-                select(Subscription).where(
+                select(Subscription)
+                .where(
                     Subscription.user_id == user.id,
                     Subscription.status == "active",
-                    Subscription.expires_at > now_utc,
+                    (Subscription.expires_at.is_(None)) | (Subscription.expires_at > now_utc),
                 )
+                .execution_options(populate_existing=True)
             )
             if hasattr(res, "scalar_one_or_none"):
                 sub = res.scalar_one_or_none()
@@ -79,7 +82,7 @@ async def build_user_response(
         and (sub.expires_at is None or sub.expires_at > now_utc)
     )
 
-    if role_name == "student":
+    if role_name in ("student", "lecturer"):
         plan = "pro" if has_active_sub else "free"
         is_pro = has_active_sub
         sub_expires = sub.expires_at if has_active_sub else None
@@ -94,7 +97,7 @@ async def build_user_response(
         email=user.email,
         name=user.full_name,
         roleID=user_role.id if user_role else getattr(user, "role_id", None),
-        roleName=role_name,
+        roleName=raw_role_name,
         roleCode=getattr(user_role, "code", None) if user_role else None,
         roleLabel=(
             getattr(user_role, "display_name", None)
@@ -126,10 +129,12 @@ async def list_users_controller(
         try:
             now_utc = _utc_now()
             sub_res = await session.execute(
-                select(Subscription).where(
+                select(Subscription)
+                .where(
                     Subscription.status == "active",
-                    Subscription.expires_at > now_utc,
+                    (Subscription.expires_at.is_(None)) | (Subscription.expires_at > now_utc),
                 )
+                .execution_options(populate_existing=True)
             )
             sub_map = {s.user_id: s for s in sub_res.scalars().all()}
         except Exception:
@@ -326,29 +331,34 @@ async def update_user_controller(
     if "plan" in updated_fields and request.plan is not None:
         now_utc = _utc_now()
         plan_target = request.plan.strip().lower()
+        target_role_obj = getattr(user, "role", None)
+        raw_target_role = target_role_obj.name if target_role_obj else None
+        target_role_name = normalize_role_name(raw_target_role) or raw_target_role
+        sub_plan_code = "lecturer" if target_role_name == "lecturer" else "pro"
         sub_res = await session.execute(
             select(Subscription).where(Subscription.user_id == user_id)
         )
-        sub = sub_res.scalar_one_or_none()
+        subs = list(sub_res.scalars().all())
         if plan_target == "pro":
-            if sub is None:
+            if not subs:
                 sub = Subscription(
                     user_id=user_id,
-                    plan_code="pro",
+                    plan_code=sub_plan_code,
                     status="active",
                     starts_at=now_utc,
                     expires_at=now_utc + timedelta(days=30),
                 )
                 session.add(sub)
             else:
+                sub = subs[0]
                 base_time = sub.expires_at if sub.expires_at and sub.expires_at > now_utc else now_utc
-                sub.plan_code = "pro"
+                sub.plan_code = sub_plan_code
                 sub.status = "active"
                 sub.starts_at = now_utc
                 sub.expires_at = base_time + timedelta(days=30)
                 sub.updated_at = now_utc
         elif plan_target == "free":
-            if sub is not None:
+            for sub in subs:
                 sub.status = "inactive"
                 sub.expires_at = now_utc
                 sub.updated_at = now_utc
@@ -377,11 +387,12 @@ async def revoke_user_pro_controller(session: AsyncSession, user_id: str) -> Use
     res = await session.execute(
         select(Subscription).where(Subscription.user_id == user_id)
     )
-    sub = res.scalar_one_or_none()
-    if sub:
+    subs = list(res.scalars().all())
+    for sub in subs:
         sub.status = "inactive"
         sub.expires_at = now_utc
         sub.updated_at = now_utc
+    if subs:
         await session.commit()
 
     updated_user = await user_repo.reload_with_role(session, user_id)
@@ -398,6 +409,10 @@ async def grant_user_pro_controller(
             detail="User does not exist",
         )
     now_utc = _utc_now()
+    target_role_obj = getattr(user, "role", None)
+    raw_target_role = target_role_obj.name if target_role_obj else None
+    target_role_name = normalize_role_name(raw_target_role) or raw_target_role
+    sub_plan_code = "lecturer" if target_role_name == "lecturer" else "pro"
     res = await session.execute(
         select(Subscription).where(Subscription.user_id == user_id)
     )
@@ -405,7 +420,7 @@ async def grant_user_pro_controller(
     if sub is None:
         sub = Subscription(
             user_id=user_id,
-            plan_code="pro",
+            plan_code=sub_plan_code,
             status="active",
             starts_at=now_utc,
             expires_at=now_utc + timedelta(days=days),
@@ -413,7 +428,7 @@ async def grant_user_pro_controller(
         session.add(sub)
     else:
         base_time = sub.expires_at if sub.expires_at and sub.expires_at > now_utc else now_utc
-        sub.plan_code = "pro"
+        sub.plan_code = sub_plan_code
         sub.status = "active"
         sub.starts_at = now_utc
         sub.expires_at = base_time + timedelta(days=days)

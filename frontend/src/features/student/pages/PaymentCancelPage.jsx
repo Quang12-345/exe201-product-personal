@@ -1,9 +1,19 @@
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import '../styles/student.css'
 
 export default function PaymentCancelPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
-  const returnTo = searchParams.get('return_to') || '/student/chat'
+  const searchReturnTo = searchParams.get('return_to') || ''
+
+  const isLecturer =
+    searchParams.get('plan_code') === 'lecturer_monthly' ||
+    location.pathname.startsWith('/lecturer') ||
+    searchReturnTo.startsWith('/lecturer')
+
+  const returnTo = searchReturnTo || (isLecturer ? '/lecturer/classes' : '/student/chat')
+  const dashboardPath = isLecturer ? '/lecturer' : '/student'
 
   return (
     <div className="st-payment-page-container">
@@ -29,13 +39,13 @@ export default function PaymentCancelPage() {
             className="st-btn-primary-glow"
             onClick={() => navigate(returnTo)}
           >
-            Thử nâng cấp Gói Pro lại
+            {isLecturer ? 'Thử nâng cấp Gói Giảng viên lại' : 'Thử nâng cấp Gói Pro lại'}
           </button>
 
           <button
             type="button"
             className="st-btn-secondary"
-            onClick={() => navigate('/student')}
+            onClick={() => navigate(dashboardPath)}
           >
             Quay về Bảng Điều Khiển
           </button>

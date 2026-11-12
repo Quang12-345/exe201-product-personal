@@ -122,7 +122,7 @@ async def test_pro_student_has_nine_hundred_thousand_daily_token_limit(billing_s
 
 
 @pytest.mark.asyncio
-async def test_vnpay_checkout_creates_signed_99000_vnd_order(billing_session, monkeypatch):
+async def test_vnpay_checkout_creates_signed_39000_vnd_order(billing_session, monkeypatch):
     monkeypatch.setattr(
         billing,
         "get_settings",
@@ -140,14 +140,14 @@ async def test_vnpay_checkout_creates_signed_99000_vnd_order(billing_session, mo
     )
     params = {key: value[0] for key, value in parse_qs(urlparse(result["checkout_url"]).query).items()}
 
-    assert result["amount"] == 99_000
-    assert params["vnp_Amount"] == "9900000"
+    assert result["amount"] == 39_000
+    assert params["vnp_Amount"] == "3900000"
     assert params["vnp_TmnCode"] == "TST12345"
     assert billing.verify_vnpay_signature(params, "test-secret")
 
 
 def test_vnpay_signature_rejects_tampered_amount():
-    params = {"vnp_TxnRef": "123", "vnp_Amount": "9900000", "vnp_ResponseCode": "00"}
+    params = {"vnp_TxnRef": "123", "vnp_Amount": "3900000", "vnp_ResponseCode": "00"}
     params["vnp_SecureHash"] = billing._signature(params, "test-secret")
 
     assert billing.verify_vnpay_signature(params, "test-secret")
@@ -166,7 +166,7 @@ async def test_valid_vnpay_ipn_activates_one_month_once(billing_session, monkeyp
     payment = PaymentTransaction(
         user_id="student-paid",
         order_code=123456,
-        amount=99_000,
+        amount=39_000,
         provider="vnpay",
         status="pending",
     )
@@ -176,7 +176,7 @@ async def test_valid_vnpay_ipn_activates_one_month_once(billing_session, monkeyp
     params = {
         "vnp_TmnCode": "TST12345",
         "vnp_TxnRef": "123456",
-        "vnp_Amount": "9900000",
+        "vnp_Amount": "3900000",
         "vnp_ResponseCode": "00",
         "vnp_TransactionStatus": "00",
         "vnp_TransactionNo": "987654321",
@@ -193,6 +193,7 @@ async def test_valid_vnpay_ipn_activates_one_month_once(billing_session, monkeyp
     subscription = result.scalar_one()
     expiry = subscription.expires_at
     assert subscription.status == "active"
+    assert subscription.plan_code == "pro"
     assert await billing.process_vnpay_ipn(billing_session, params) == {
         "RspCode": "02",
         "Message": "Order already confirmed",
@@ -200,7 +201,7 @@ async def test_valid_vnpay_ipn_activates_one_month_once(billing_session, monkeyp
     assert subscription.expires_at == expiry
 
 
-def _signed_querydr_response(*, amount="9900000", secret="query-secret"):
+def _signed_querydr_response(*, amount="3900000", secret="query-secret"):
     response = {
         "vnp_ResponseId": "response-1",
         "vnp_Command": "querydr",
@@ -228,7 +229,7 @@ async def _create_querydr_pending_order(session):
     payment = PaymentTransaction(
         user_id="student-querydr",
         order_code=234567,
-        amount=99_000,
+        amount=39_000,
         provider="vnpay",
         status="pending",
         checkout_url=(
@@ -328,3 +329,199 @@ def test_vietnam_daily_reset_is_midnight_utc_plus_seven():
     from datetime import date
 
     assert billing._reset_at(date(2026, 9, 26)) == "2026-09-27T00:00:00+07:00"
+
+
+@pytest.mark.asyncio
+async def test_vnpay_checkout_creates_signed_129000_vnd_lecturer_order(billing_session, monkeypatch):
+    monkeypatch.setattr(
+        billing,
+        "get_settings",
+        lambda: SimpleNamespace(
+            vnpay_tmn_code="TST12345",
+            vnpay_hash_secret="test-secret",
+            vnpay_payment_url="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+            vnpay_return_url="https://merchant.example/api/v1/billing/vnpay/return",
+        ),
+    )
+    result = await billing.create_vnpay_checkout(
+        billing_session,
+        user=SimpleNamespace(id="lecturer-checkout", full_name="Lecturer"),
+        ip_address="127.0.0.1",
+        return_to="/lecturer/exams",
+        plan_code="lecturer_monthly",
+    )
+    params = {key: value[0] for key, value in parse_qs(urlparse(result["checkout_url"]).query).items()}
+
+    assert result["amount"] == 129_000
+    assert params["vnp_Amount"] == "12900000"
+    assert billing.verify_vnpay_signature(params, "test-secret")
+
+    tx = (
+        await billing_session.execute(
+            select(PaymentTransaction).where(PaymentTransaction.order_code == result["order_code"])
+        )
+    ).scalar_one()
+    assert tx.raw_webhook["plan_code"] == "lecturer_monthly"
+    assert tx.raw_webhook["return_to"] == "/lecturer/exams"
+
+
+@pytest.mark.asyncio
+async def test_valid_vnpay_ipn_activates_lecturer_subscription_and_receipt(billing_session, monkeypatch):
+    monkeypatch.setattr(
+        billing,
+        "get_settings",
+        lambda: SimpleNamespace(vnpay_hash_secret="test-secret", vnpay_tmn_code="TST12345"),
+    )
+    payment = PaymentTransaction(
+        user_id="lecturer-paid",
+        order_code=654321,
+        amount=129_000,
+        provider="vnpay",
+        status="pending",
+        raw_webhook={"plan_code": "lecturer_monthly", "return_to": "/lecturer/classes"},
+    )
+    billing_session.add(payment)
+    await billing_session.commit()
+
+    params = {
+        "vnp_TmnCode": "TST12345",
+        "vnp_TxnRef": "654321",
+        "vnp_Amount": "12900000",
+        "vnp_ResponseCode": "00",
+        "vnp_TransactionStatus": "00",
+        "vnp_TransactionNo": "111222333",
+    }
+    params["vnp_SecureHash"] = billing._signature(params, "test-secret")
+
+    assert await billing.process_vnpay_ipn(billing_session, params) == {
+        "RspCode": "00",
+        "Message": "Confirm Success",
+    }
+    sub = (
+        await billing_session.execute(
+            select(Subscription).where(Subscription.user_id == "lecturer-paid")
+        )
+    ).scalar_one()
+    assert sub.status == "active"
+    assert sub.plan_code == "lecturer"
+
+    receipt = await billing.get_payment_receipt(billing_session, order_code=654321)
+    assert receipt["amount"] == 129_000
+    assert receipt["plan_code"] == "lecturer_monthly"
+    assert receipt["return_to"] == "/lecturer/classes"
+    assert "Giảng Viên" in receipt["plan_name"]
+
+
+@pytest.mark.asyncio
+async def test_lecturer_billing_status_class_limits_and_feature_gate(billing_session):
+    from src.db.models import Classroom, Role, User
+
+    role_lec = Role(id="r-lec", name="lecturer", code="GV", display_name="Giảng viên")
+    role_admin = Role(id="r-adm", name="admin", code="AD", display_name="Vận hành")
+    lec_user = User(
+        id="lec-quota-1",
+        username="lec1",
+        email="lec1@example.com",
+        password="hash",
+        full_name="Giang Vien 1",
+        role_id="r-lec",
+    )
+    billing_session.add_all([role_lec, role_admin, lec_user])
+    await billing_session.commit()
+
+    lec_actor = SimpleNamespace(id="lec-quota-1", role=SimpleNamespace(name="lecturer"))
+    admin_actor = SimpleNamespace(id="adm-1", role=SimpleNamespace(name="admin"))
+
+    # Seed 4 classrooms -> free lecturer can still create a 5th class, but advanced features are locked.
+    for idx in range(4):
+        billing_session.add(
+            Classroom(
+                id=f"cls-{idx}",
+                name=f"Lop {idx}",
+                code=f"CODE{idx}",
+                subject=f"Mon {idx}",
+                created_by="lec-quota-1",
+            )
+        )
+    await billing_session.commit()
+
+    await billing.check_lecturer_class_limit(billing_session, "lec-quota-1")
+
+    with pytest.raises(HTTPException) as feat_err:
+        await billing.require_paid_lecturer_feature(billing_session, lec_actor)
+    assert feat_err.value.status_code == 403
+
+    # Admin is never blocked by lecturer gating.
+    await billing.require_paid_lecturer_feature(billing_session, admin_actor)
+
+    free_status = await billing.get_billing_status(
+        billing_session, user_id="lec-quota-1", user_role="lecturer"
+    )
+    assert free_status["is_pro"] is False
+    assert free_status["plan_code"] == "lecturer_monthly"
+    assert free_status["price_vnd"] == 129_000
+    assert free_status["max_classes"] == 5
+    assert free_status["current_classes"] == 4
+    assert free_status["remaining_classes"] == 1
+    assert free_status["features"] == {"exams": False, "docx_quiz": False, "max_classes": 5}
+
+    # Add 5th classroom -> reaching 5/5 blocks 6th creation while still free.
+    billing_session.add(
+        Classroom(
+            id="cls-4",
+            name="Lop 4",
+            code="CODE4",
+            subject="Mon 4",
+            created_by="lec-quota-1",
+        )
+    )
+    await billing_session.commit()
+
+    with pytest.raises(HTTPException) as limit_err:
+        await billing.check_lecturer_class_limit(billing_session, "lec-quota-1")
+    assert limit_err.value.status_code == 403
+    assert "5" in limit_err.value.detail
+
+    # Upgrade lecturer -> 50-class limit & full features unlocked.
+    now = billing._utc_now()
+    billing_session.add(
+        Subscription(
+            user_id="lec-quota-1",
+            plan_code="lecturer",
+            status="active",
+            starts_at=now,
+            expires_at=now + timedelta(days=30),
+        )
+    )
+    await billing_session.commit()
+
+    await billing.check_lecturer_class_limit(billing_session, "lec-quota-1")
+    await billing.require_paid_lecturer_feature(billing_session, lec_actor)
+
+    paid_status = await billing.get_billing_status(
+        billing_session, user_id="lec-quota-1", user_role="lecturer"
+    )
+    assert paid_status["is_pro"] is True
+    assert paid_status["max_classes"] == 50
+    assert paid_status["current_classes"] == 5
+    assert paid_status["remaining_classes"] == 45
+    assert paid_status["features"] == {"exams": True, "docx_quiz": True, "max_classes": 50}
+
+    # Reach 50/50 classes -> 51st is rejected with 403.
+    for idx in range(5, 50):
+        billing_session.add(
+            Classroom(
+                id=f"cls-{idx}",
+                name=f"Lop {idx}",
+                code=f"CODE{idx}",
+                subject=f"Mon {idx}",
+                created_by="lec-quota-1",
+            )
+        )
+    await billing_session.commit()
+
+    with pytest.raises(HTTPException) as paid_limit_err:
+        await billing.check_lecturer_class_limit(billing_session, "lec-quota-1")
+    assert paid_limit_err.value.status_code == 403
+    assert "50" in paid_limit_err.value.detail
+

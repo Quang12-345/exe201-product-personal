@@ -475,7 +475,7 @@ export default function StudyPage() {
             onClick={handleBuyPro}
             disabled={checkoutBusy}
           >
-            {checkoutBusy ? 'Đang kết nối...' : 'Nâng cấp Pro · 99.000đ/tháng'}
+            {checkoutBusy ? 'Đang kết nối...' : 'Nâng cấp Pro · 39.000đ/tháng'}
           </button>
         </div>
       )}
@@ -635,7 +635,7 @@ export default function StudyPage() {
               onClick={handleBuyPro}
               disabled={checkoutBusy}
             >
-              {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 99.000đ/tháng'}
+              {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 39.000đ/tháng'}
             </button>
           </div>
         ) : (

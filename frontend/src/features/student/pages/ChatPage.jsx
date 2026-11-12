@@ -415,7 +415,7 @@ function ChatPage() {
           </div>
           {!billing?.is_pro && (
             <button type="button" onClick={buyPro} disabled={checkoutBusy}>
-              {checkoutBusy ? 'Đang kết nối...' : 'Nâng cấp Pro · 99.000đ/tháng'}
+              {checkoutBusy ? 'Đang kết nối...' : 'Nâng cấp Pro · 39.000đ/tháng'}
             </button>
           )}
         </div>

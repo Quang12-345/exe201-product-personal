@@ -8,9 +8,13 @@ class VnPayPaymentCreateRequest(BaseModel):
         json_schema_extra={"examples": [{"plan_code": "pro_monthly"}]}
     )
 
-    plan_code: Literal["pro_monthly"] = Field(
+    plan_code: Literal["pro_monthly", "lecturer_monthly"] = Field(
         default="pro_monthly",
-        description="Gói Pro 1 tháng, giá cố định 99.000 VND. Không nhận user_id hoặc amount từ client.",
+        description=(
+            "Mã gói đăng ký 1 tháng: 'pro_monthly' (Sinh viên Pro - 39.000 VND) "
+            "hoặc 'lecturer_monthly' (Gói Giảng viên - 129.000 VND). "
+            "Không nhận user_id hoặc amount từ client."
+        ),
     )
     return_to: str | None = Field(
         default=None,
@@ -49,7 +53,9 @@ class PaymentReceiptResponse(BaseModel):
     status: str
     is_paid: bool
     recipient_name: str
+    plan_code: str = "pro_monthly"
     plan_name: str
+    return_to: str | None = None
     transaction_time: str
     transaction_ref: str
     account_number: str

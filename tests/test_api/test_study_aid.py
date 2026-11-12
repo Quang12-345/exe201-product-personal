@@ -272,6 +272,10 @@ async def test_generate_quiz_controller(monkeypatch):
     async def fake_gen_quiz(session, document_id, title, num_questions, *args, **kwargs):
         return mock_quiz
 
+    async def allow_paid(session, user, **kwargs):
+        return None
+
+    monkeypatch.setattr("src.services.billing.require_paid_lecturer_feature", allow_paid)
     monkeypatch.setattr(sac.study_aid_service, "generate_quiz", fake_gen_quiz)
     session = _mock_session()
 
@@ -283,6 +287,51 @@ async def test_generate_quiz_controller(monkeypatch):
     assert len(res.questions) == 1
     assert res.questions[0].correct_answer == "B. 2"
     session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_unpaid_lecturer_blocked_from_quiz_generation_and_docx_controllers(monkeypatch):
+    from fastapi import UploadFile
+    from io import BytesIO
+
+    async def no_sub(session, user_id):
+        return None
+
+    monkeypatch.setattr("src.services.billing._active_subscription", no_sub)
+    session = _mock_session()
+    lecturer = _user("lecturer", "lec-free")
+    dummy_file = UploadFile(filename="de.docx", file=BytesIO(b"dummy"))
+
+    with pytest.raises(HTTPException) as gen_exc:
+        await sac.generate_quiz_controller(
+            session, "doc-1", GenerateQuizRequest(title="AI", num_questions=1), user=lecturer
+        )
+    assert gen_exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as parse_exc:
+        await sac.parse_docx_quiz_controller(session, lecturer, dummy_file)
+    assert parse_exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as import_exc:
+        await sac.import_docx_quiz_controller(session, lecturer, dummy_file)
+    assert import_exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as custom_exc:
+        await sac.create_custom_quiz_controller(
+            session,
+            lecturer,
+            sac.CustomQuizCreate(
+                title="Custom",
+                questions=[
+                    {
+                        "question_text": "Q?",
+                        "options": ["A", "B"],
+                        "correct_answer": "A",
+                    }
+                ],
+            ),
+        )
+    assert custom_exc.value.status_code == 403
 
 
 @pytest.mark.asyncio

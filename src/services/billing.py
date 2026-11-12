@@ -22,9 +22,41 @@ from src.db.models import ChatUsageEvent, DailyChatUsage, PaymentTransaction, Su
 FREE_DAILY_TOKEN_LIMIT = 200_000
 PRO_DAILY_TOKEN_LIMIT = 900_000
 FREE_DAILY_LIMIT = FREE_DAILY_TOKEN_LIMIT  # Backward-compatible alias
-PRO_PRICE_VND = 99_000
+PRO_PRICE_VND = 39_000
+LECTURER_PRICE_VND = 129_000
+FREE_LECTURER_MAX_CLASSES = 5
+PAID_LECTURER_MAX_CLASSES = 50
+STUDENT_PRO_PLAN_CODE = "pro_monthly"
+LECTURER_PRO_PLAN_CODE = "lecturer_monthly"
 VN_TZ = timezone(timedelta(hours=7), name="UTC+07:00")
 logger = logging.getLogger(__name__)
+
+PLAN_SPECS: dict[str, dict] = {
+    STUDENT_PRO_PLAN_CODE: {
+        "plan_code": STUDENT_PRO_PLAN_CODE,
+        "subscription_plan_code": "pro",
+        "price_vnd": PRO_PRICE_VND,
+        "plan_name": "Gói Pro Sinh Viên (30 ngày)",
+        "order_info_prefix": "Pro monthly",
+        "payos_prefix": "Pro",
+        "default_return": "/student/chat",
+        "return_prefix": "/student",
+        "payment_success_path": "/student/payment/success",
+        "payment_cancel_path": "/student/payment/cancel",
+    },
+    LECTURER_PRO_PLAN_CODE: {
+        "plan_code": LECTURER_PRO_PLAN_CODE,
+        "subscription_plan_code": "lecturer",
+        "price_vnd": LECTURER_PRICE_VND,
+        "plan_name": "Gói Giảng Viên (30 ngày)",
+        "order_info_prefix": "Lecturer monthly",
+        "payos_prefix": "GV Pro",
+        "default_return": "/lecturer/classes",
+        "return_prefix": "/lecturer",
+        "payment_success_path": "/lecturer/payment/success",
+        "payment_cancel_path": "/lecturer/payment/cancel",
+    },
+}
 
 QUERYDR_REQUEST_FIELDS = (
     "vnp_RequestId",
@@ -75,6 +107,70 @@ def _reset_at(today: date) -> str:
     return reset.isoformat()
 
 
+def _is_student_role(user_role: str | None) -> bool:
+    return user_role in ("student", "SV", None)
+
+
+def _is_lecturer_role(user_role: str | None) -> bool:
+    return user_role in ("lecturer", "GV")
+
+
+def _role_of_user(user) -> str | None:
+    if not user:
+        return None
+    role_obj = getattr(user, "role", None)
+    return role_obj.name if getattr(role_obj, "name", None) else None
+
+
+def get_plan_spec(plan_code: str | None) -> dict:
+    if plan_code in PLAN_SPECS:
+        return PLAN_SPECS[plan_code]
+    raise HTTPException(status_code=400, detail="Mã gói dịch vụ không hợp lệ.")
+
+
+def is_allowed_return_path(path: str | None, plan_code: str) -> bool:
+    if not path or not isinstance(path, str):
+        return False
+    stripped = path.strip()
+    if stripped.startswith("//"):
+        return False
+    prefix = PLAN_SPECS.get(plan_code, PLAN_SPECS[STUDENT_PRO_PLAN_CODE])["return_prefix"]
+    if stripped == prefix:
+        return True
+    return stripped.startswith(f"{prefix}/") or stripped.startswith(f"{prefix}?")
+
+
+def resolve_return_path(custom_return: str | None, plan_code: str) -> str:
+    spec = PLAN_SPECS.get(plan_code, PLAN_SPECS[STUDENT_PRO_PLAN_CODE])
+    if is_allowed_return_path(custom_return, plan_code):
+        return custom_return.strip()
+    return spec["default_return"]
+
+
+def resolve_payment_plan_code(payment: PaymentTransaction | None) -> str:
+    if payment is None:
+        return STUDENT_PRO_PLAN_CODE
+    raw = payment.raw_webhook if isinstance(payment.raw_webhook, dict) else {}
+    stored_plan = raw.get("plan_code")
+    if stored_plan in PLAN_SPECS:
+        return stored_plan
+    checkout_url = payment.checkout_url or ""
+    if "Lecturer+monthly" in checkout_url or "Lecturer%20monthly" in checkout_url or "/lecturer/" in checkout_url:
+        return LECTURER_PRO_PLAN_CODE
+    if payment.amount == LECTURER_PRICE_VND:
+        return LECTURER_PRO_PLAN_CODE
+    return STUDENT_PRO_PLAN_CODE
+
+
+def _preserve_payment_metadata(existing_raw, new_data: dict) -> dict:
+    merged = dict(new_data) if isinstance(new_data, dict) else {}
+    if isinstance(existing_raw, dict):
+        for key in ("plan_code", "return_to"):
+            if key in existing_raw and key not in merged and existing_raw[key] is not None:
+                merged[key] = existing_raw[key]
+    return merged
+
+
 async def _active_subscription(session: AsyncSession, user_id: str) -> Subscription | None:
     result = await session.execute(
         select(Subscription).where(
@@ -86,6 +182,74 @@ async def _active_subscription(session: AsyncSession, user_id: str) -> Subscript
     return result.scalar_one_or_none()
 
 
+async def require_paid_lecturer_feature(
+    session: AsyncSession,
+    user,
+    *,
+    feature_name: str = "Lịch thi trắc nghiệm & Nhập đề từ file Word",
+) -> None:
+    """Chặn giảng viên chưa mua Gói Giảng viên sử dụng tính năng nâng cao."""
+    role = _role_of_user(user)
+    if not _is_lecturer_role(role):
+        return
+    subscription = await _active_subscription(session, user.id)
+    if subscription is None:
+        formatted_price = f"{LECTURER_PRICE_VND:,}".replace(",", ".")
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Tính năng {feature_name} chỉ dành cho tài khoản đã đăng ký Gói Giảng viên "
+                f"({formatted_price}đ/tháng). Vui lòng nâng cấp gói để mở khóa."
+            ),
+        )
+
+
+async def check_lecturer_class_limit(session: AsyncSession, user_id: str) -> None:
+    """Kiểm tra giới hạn số lớp học tối đa của giảng viên (Free: 5 lớp, Gói tháng: 50 lớp)."""
+    from src.repositories import classroom_repo
+
+    subscription = await _active_subscription(session, user_id)
+    current_count = await classroom_repo.count_classrooms_by_owner(session, user_id)
+    is_paid = subscription is not None
+    limit = PAID_LECTURER_MAX_CLASSES if is_paid else FREE_LECTURER_MAX_CLASSES
+    if current_count >= limit:
+        if not is_paid:
+            formatted_price = f"{LECTURER_PRICE_VND:,}".replace(",", ".")
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Tài khoản Giảng viên miễn phí chỉ được tạo tối đa {FREE_LECTURER_MAX_CLASSES} lớp học "
+                    f"(hiện có {current_count}/{FREE_LECTURER_MAX_CLASSES}). Vui lòng nâng cấp Gói Giảng viên "
+                    f"({formatted_price}đ/tháng) để tạo tối đa {PAID_LECTURER_MAX_CLASSES} lớp và sử dụng full chức năng."
+                ),
+            )
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Bạn đã đạt giới hạn tối đa {PAID_LECTURER_MAX_CLASSES} lớp học của Gói Giảng viên."
+            ),
+        )
+
+
+async def _auto_reconcile_recent_payos(session: AsyncSession, user_id: str) -> None:
+    recent_pending_res = await session.execute(
+        select(PaymentTransaction)
+        .where(
+            PaymentTransaction.user_id == user_id,
+            PaymentTransaction.status == "pending",
+            PaymentTransaction.created_at >= _utc_now() - timedelta(days=2),
+        )
+        .order_by(PaymentTransaction.created_at.desc())
+        .limit(1)
+    )
+    recent_tx = recent_pending_res.scalar_one_or_none()
+    if recent_tx and recent_tx.provider == "payos":
+        try:
+            await query_payos_and_reconcile(session, order_code=recent_tx.order_code)
+        except Exception as exc:
+            logger.warning("Auto-reconcile PayOS failed during get_billing_status: %s", exc)
+
+
 async def get_billing_status(
     session: AsyncSession, *, user_id: str, user_role: str | None
 ) -> dict:
@@ -93,11 +257,58 @@ async def get_billing_status(
     free_limit = getattr(settings, "free_daily_token_limit", FREE_DAILY_TOKEN_LIMIT)
     pro_limit = getattr(settings, "pro_daily_token_limit", PRO_DAILY_TOKEN_LIMIT)
 
-    if user_role != "student":
+    if _is_lecturer_role(user_role):
+        from src.repositories import classroom_repo
+
+        subscription = await _active_subscription(session, user_id)
+        if subscription is None:
+            await _auto_reconcile_recent_payos(session, user_id)
+            subscription = await _active_subscription(session, user_id)
+
+        pending_result = await session.execute(
+            select(PaymentTransaction.order_code)
+            .where(
+                PaymentTransaction.user_id == user_id,
+                PaymentTransaction.status == "pending",
+            )
+            .order_by(PaymentTransaction.created_at.desc())
+            .limit(1)
+        )
+        pending_order_code = pending_result.scalar_one_or_none()
+        current_classes = await classroom_repo.count_classrooms_by_owner(session, user_id)
+        is_paid = subscription is not None
+        max_classes = PAID_LECTURER_MAX_CLASSES if is_paid else FREE_LECTURER_MAX_CLASSES
+        return {
+            "plan": "pro" if is_paid else "free",
+            "is_pro": is_paid,
+            "plan_code": LECTURER_PRO_PLAN_CODE,
+            "price_vnd": LECTURER_PRICE_VND,
+            "max_classes": max_classes,
+            "current_classes": current_classes,
+            "remaining_classes": max(0, max_classes - current_classes),
+            "features": {
+                "exams": is_paid,
+                "docx_quiz": is_paid,
+                "max_classes": max_classes,
+            },
+            "daily_limit": None,
+            "daily_token_limit": None,
+            "used_today": 0,
+            "tokens_used_today": 0,
+            "remaining_today": None,
+            "remaining_tokens_today": None,
+            "query_count_today": 0,
+            "reset_at": None,
+            "expires_at": _as_utc_iso(subscription.expires_at) if subscription else None,
+            "pending_order_code": pending_order_code,
+        }
+
+    if not _is_student_role(user_role):
         return {
             "plan": "staff",
             "is_pro": True,
             "price_vnd": PRO_PRICE_VND,
+            "max_classes": None,
             "daily_limit": None,
             "daily_token_limit": None,
             "used_today": 0,
@@ -114,24 +325,8 @@ async def get_billing_status(
 
     # Tự động đối soát đơn hàng chưa hoàn tất trong 48h (ví dụ PayOS vừa chuyển khoản xong)
     if subscription is None:
-        recent_pending_res = await session.execute(
-            select(PaymentTransaction)
-            .where(
-                PaymentTransaction.user_id == user_id,
-                PaymentTransaction.status == "pending",
-                PaymentTransaction.created_at >= _utc_now() - timedelta(days=2),
-            )
-            .order_by(PaymentTransaction.created_at.desc())
-            .limit(1)
-        )
-        recent_tx = recent_pending_res.scalar_one_or_none()
-        if recent_tx and recent_tx.provider == "payos":
-            try:
-                rec_status = await query_payos_and_reconcile(session, order_code=recent_tx.order_code)
-                if rec_status == "paid":
-                    subscription = await _active_subscription(session, user_id)
-            except Exception as exc:
-                logger.warning("Auto-reconcile PayOS failed during get_billing_status: %s", exc)
+        await _auto_reconcile_recent_payos(session, user_id)
+        subscription = await _active_subscription(session, user_id)
 
     pending_result = await session.execute(
         select(PaymentTransaction.order_code)
@@ -159,6 +354,7 @@ async def get_billing_status(
         return {
             "plan": "pro",
             "is_pro": True,
+            "plan_code": STUDENT_PRO_PLAN_CODE,
             "price_vnd": PRO_PRICE_VND,
             "daily_limit": limit,
             "daily_token_limit": limit,
@@ -176,6 +372,7 @@ async def get_billing_status(
     return {
         "plan": "free",
         "is_pro": False,
+        "plan_code": STUDENT_PRO_PLAN_CODE,
         "price_vnd": PRO_PRICE_VND,
         "daily_limit": limit,
         "daily_token_limit": limit,
@@ -366,7 +563,12 @@ def _querydr_request(payment: PaymentTransaction, *, ip_address: str, settings) 
     if not create_date:
         created_at = datetime.fromtimestamp(payment.order_code / 1_000_000, tz=UTC)
         create_date = created_at.astimezone(VN_TZ).strftime("%Y%m%d%H%M%S")
-    order_info = (checkout_params.get("vnp_OrderInfo") or [f"Pro monthly {payment.order_code}"])[0]
+    plan_code = resolve_payment_plan_code(payment)
+    spec = get_plan_spec(plan_code)
+    order_info = (
+        checkout_params.get("vnp_OrderInfo")
+        or [f"{spec['order_info_prefix']} {payment.order_code}"]
+    )[0]
     payload = {
         "vnp_RequestId": token_hex(16),
         "vnp_Version": "2.1.0",
@@ -404,6 +606,7 @@ async def create_vnpay_checkout(
     user,
     ip_address: str,
     return_to: str | None = None,
+    plan_code: str = STUDENT_PRO_PLAN_CODE,
 ) -> dict[str, str | int]:
     settings = get_settings()
     tmn_code = (settings.vnpay_tmn_code or "").strip()
@@ -411,16 +614,23 @@ async def create_vnpay_checkout(
     if not tmn_code or not hash_secret:
         raise HTTPException(status_code=503, detail="Thanh toán VNPay chưa được cấu hình.")
 
+    spec = get_plan_spec(plan_code)
+    amount = spec["price_vnd"]
+    safe_return = return_to.strip() if is_allowed_return_path(return_to, plan_code) else None
+    raw_meta: dict = {"plan_code": plan_code}
+    if safe_return:
+        raw_meta["return_to"] = safe_return
+
     order_code = time.time_ns() // 1_000
     now = _now_vn()
     expires = now + timedelta(minutes=15)
     transaction = PaymentTransaction(
         user_id=user.id,
         order_code=order_code,
-        amount=PRO_PRICE_VND,
+        amount=amount,
         provider="vnpay",
         status="pending",
-        raw_webhook={"return_to": return_to} if return_to else None,
+        raw_webhook=raw_meta,
     )
     session.add(transaction)
     await session.flush()
@@ -437,10 +647,10 @@ async def create_vnpay_checkout(
         "vnp_Version": "2.1.0",
         "vnp_Command": "pay",
         "vnp_TmnCode": tmn_code,
-        "vnp_Amount": str(PRO_PRICE_VND * 100),
+        "vnp_Amount": str(amount * 100),
         "vnp_CurrCode": "VND",
         "vnp_TxnRef": str(order_code),
-        "vnp_OrderInfo": f"Pro monthly {order_code}",
+        "vnp_OrderInfo": f"{spec['order_info_prefix']} {order_code}",
         "vnp_OrderType": "other",
         "vnp_Locale": "vn",
         "vnp_ReturnUrl": return_url,
@@ -456,7 +666,7 @@ async def create_vnpay_checkout(
         "checkout_url": checkout_url,
         "payment_url": checkout_url,
         "order_code": order_code,
-        "amount": PRO_PRICE_VND,
+        "amount": amount,
     }
 
 
@@ -477,9 +687,11 @@ async def _complete_payment(
     if payment.status == "paid":
         return
     now = _utc_now()
+    plan_code = resolve_payment_plan_code(payment)
+    sub_plan_code = get_plan_spec(plan_code)["subscription_plan_code"]
     payment.status = "paid"
     payment.transaction_ref = transaction_ref
-    payment.raw_webhook = verification_data
+    payment.raw_webhook = _preserve_payment_metadata(payment.raw_webhook, verification_data)
     payment.paid_at = now
     result = await session.execute(
         select(Subscription).where(Subscription.user_id == payment.user_id)
@@ -489,7 +701,7 @@ async def _complete_payment(
         session.add(
             Subscription(
                 user_id=payment.user_id,
-                plan_code="pro",
+                plan_code=sub_plan_code,
                 status="active",
                 starts_at=now,
                 expires_at=_add_calendar_month(now),
@@ -499,6 +711,7 @@ async def _complete_payment(
         active_expiry = subscription.expires_at if (
             subscription.status == "active" and subscription.expires_at and subscription.expires_at > now
         ) else now
+        subscription.plan_code = sub_plan_code
         subscription.status = "active"
         subscription.starts_at = subscription.starts_at or now
         subscription.expires_at = _add_calendar_month(active_expiry)
@@ -624,7 +837,7 @@ async def process_vnpay_ipn(session: AsyncSession, params: dict[str, str]) -> di
             verification_data=params,
         )
     else:
-        payment.raw_webhook = params
+        payment.raw_webhook = _preserve_payment_metadata(payment.raw_webhook, params)
         payment.transaction_ref = params.get("vnp_TransactionNo")
         payment.status = "failed"
         await session.commit()
@@ -699,6 +912,7 @@ async def create_payos_checkout(
     user,
     return_to: str | None = None,
     client_origin: str | None = None,
+    plan_code: str = STUDENT_PRO_PLAN_CODE,
 ) -> dict[str, str | int]:
     """Tạo link thanh toán VietQR động qua PayOS chuyển thẳng vào STK cá nhân."""
     settings = get_settings()
@@ -712,6 +926,9 @@ async def create_payos_checkout(
             detail="Cổng thanh toán PayOS chưa được cấu hình. Vui lòng kiểm tra PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY trong file .env."
         )
 
+    spec = get_plan_spec(plan_code)
+    amount = spec["price_vnd"]
+
     # Mã đơn hàng số nguyên an toàn trong JavaScript (dưới 9007199254740991)
     order_code = int(time.time() * 1000) % 9_000_000_000_000_000
 
@@ -722,18 +939,20 @@ async def create_payos_checkout(
         else (settings.frontend_url or client_origin or "http://localhost:5173")
     ).strip().rstrip("/")
 
-    return_path = return_to if (return_to and return_to.startswith("/student/")) else "/student/chat"
-    
-    # Hướng dẫn PayOS chuyển hướng về trang biên nhận & kích hoạt Pro
-    return_url = f"{frontend_base}/student/payment/success?order_code={order_code}&return_to={return_path}"
-    cancel_url = f"{frontend_base}/student/payment/cancel?order_code={order_code}&return_to={return_path}"
+    return_path = resolve_return_path(return_to, plan_code)
+    success_path = spec["payment_success_path"]
+    cancel_path = spec["payment_cancel_path"]
+
+    # Hướng dẫn PayOS chuyển hướng về trang biên nhận & kích hoạt gói
+    return_url = f"{frontend_base}{success_path}?order_code={order_code}&return_to={return_path}&plan_code={plan_code}"
+    cancel_url = f"{frontend_base}{cancel_path}?order_code={order_code}&return_to={return_path}&plan_code={plan_code}"
 
     # PayOS description tối đa 25 ký tự không dấu/kèm mã đơn
-    description = f"Pro {order_code}"[-25:]
+    description = f"{spec['payos_prefix']} {order_code}"[-25:]
 
     # PayOS yêu cầu sắp xếp đúng: amount, cancelUrl, description, orderCode, returnUrl
     data_to_sign = {
-        "amount": PRO_PRICE_VND,
+        "amount": amount,
         "cancelUrl": cancel_url,
         "description": description,
         "orderCode": order_code,
@@ -743,7 +962,7 @@ async def create_payos_checkout(
 
     payload = {
         "orderCode": order_code,
-        "amount": PRO_PRICE_VND,
+        "amount": amount,
         "description": description,
         "cancelUrl": cancel_url,
         "returnUrl": return_url,
@@ -778,13 +997,17 @@ async def create_payos_checkout(
     transaction = PaymentTransaction(
         user_id=user.id,
         order_code=order_code,
-        amount=PRO_PRICE_VND,
+        amount=amount,
         currency="VND",
         provider="payos",
         status="pending",
         payment_link_id=payment_link_id,
         checkout_url=checkout_url,
-        raw_webhook={"return_to": return_to, "payos_data": data} if return_to else {"payos_data": data},
+        raw_webhook={
+            "plan_code": plan_code,
+            "return_to": return_path,
+            "payos_data": data,
+        },
     )
     session.add(transaction)
     await session.commit()
@@ -793,7 +1016,7 @@ async def create_payos_checkout(
         "checkout_url": checkout_url,
         "payment_url": checkout_url,
         "order_code": order_code,
-        "amount": PRO_PRICE_VND,
+        "amount": amount,
         "qr_code": data.get("qrCode"),
     }
 
@@ -919,6 +1142,9 @@ async def get_payment_receipt(
         await session.refresh(payment)
 
     raw = payment.raw_webhook or {}
+    plan_code = resolve_payment_plan_code(payment)
+    spec = get_plan_spec(plan_code)
+    return_to = resolve_return_path(raw.get("return_to"), plan_code)
     payos_data = raw.get("payos_data") or (raw if raw.get("transactions") else {})
     transactions = payos_data.get("transactions") or []
     tx0 = transactions[0] if (isinstance(transactions, list) and len(transactions) > 0) else {}
@@ -940,7 +1166,9 @@ async def get_payment_receipt(
         "status": payment.status,
         "is_paid": payment.status == "paid",
         "recipient_name": "STUDYMIND - Nền Tảng Học Tập AI",
-        "plan_name": "Gói Pro Sinh Viên (30 ngày)",
+        "plan_name": spec["plan_name"],
+        "plan_code": plan_code,
+        "return_to": return_to,
         "transaction_time": tx_time_str,
         "transaction_ref": ref_code,
         "account_number": account_number,

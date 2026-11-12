@@ -868,7 +868,7 @@ def _extract_ipv4(request: Request | None) -> str:
     response_model=VnPayPaymentCreateResponse,
     tags=["payments"],
     summary="Create VNPay payment",
-    description="Create a 99,000 VND Pro monthly checkout URL for the authenticated student.",
+    description="Create a Pro (39,000 VND for students) or Lecturer Monthly (129,000 VND for lecturers) checkout URL.",
 )
 @router.post(
     "/billing/vnpay/checkout",
@@ -882,10 +882,38 @@ async def vnpay_checkout(
     session: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ) -> VnPayPaymentCreateResponse:
+    from src.services.billing import (
+        LECTURER_PRO_PLAN_CODE,
+        STUDENT_PRO_PLAN_CODE,
+        _is_lecturer_role,
+        _is_student_role,
+    )
+
     user_role = _role_name(user)
-    if user_role not in ("student", "SV", None):
-        raise HTTPException(status_code=403, detail="Gói Pro chỉ dành cho sinh viên.")
-    if getattr(user, "role_id", None) is None:
+    is_student = _is_student_role(user_role)
+    is_lecturer = _is_lecturer_role(user_role)
+    if not (is_student or is_lecturer):
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ tài khoản Sinh viên hoặc Giảng viên mới có thể mua gói.",
+        )
+
+    plan_code = payload.plan_code
+    if "plan_code" not in payload.model_fields_set and is_lecturer:
+        plan_code = LECTURER_PRO_PLAN_CODE
+
+    if is_lecturer and plan_code != LECTURER_PRO_PLAN_CODE:
+        raise HTTPException(
+            status_code=403,
+            detail="Tài khoản Giảng viên chỉ được đăng ký Gói Giảng viên (129.000đ/tháng).",
+        )
+    if is_student and plan_code != STUDENT_PRO_PLAN_CODE:
+        raise HTTPException(
+            status_code=403,
+            detail="Tài khoản Sinh viên chỉ được đăng ký Gói Pro Sinh viên (39.000đ/tháng).",
+        )
+
+    if is_student and getattr(user, "role_id", None) is None:
         from src.repositories import user_repo
 
         student_role = await user_repo.get_role_by_name(session, "student")
@@ -910,6 +938,7 @@ async def vnpay_checkout(
             user=user,
             return_to=payload.return_to,
             client_origin=client_origin,
+            plan_code=plan_code,
         )
         return VnPayPaymentCreateResponse(**result)
 
@@ -919,6 +948,7 @@ async def vnpay_checkout(
         user=user,
         ip_address=ip_address,
         return_to=payload.return_to,
+        plan_code=plan_code,
     )
     return VnPayPaymentCreateResponse(**result)
 
@@ -928,7 +958,7 @@ async def vnpay_checkout(
     response_model=PaymentReceiptResponse,
     tags=["payments"],
     summary="Get payment receipt details",
-    description="Lấy thông tin chi tiết biên nhận chuyển khoản (số tiền, người nhận, thời gian, trạng thái Pro).",
+    description="Lấy thông tin chi tiết biên nhận chuyển khoản (số tiền, người nhận, thời gian, trạng thái gói).",
 )
 async def payment_receipt(
     order_code: int,
@@ -962,9 +992,14 @@ async def reconcile_vnpay_payment(
     session: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
 ) -> VnPayReconcileResponse:
+    from src.services.billing import _is_lecturer_role, _is_student_role
+
     user_role = _role_name(user)
-    if user_role not in ("student", "SV", None):
-        raise HTTPException(status_code=403, detail="Chỉ sinh viên được kiểm tra thanh toán Pro.")
+    if not (_is_student_role(user_role) or _is_lecturer_role(user_role)):
+        raise HTTPException(
+            status_code=403,
+            detail="Chỉ tài khoản Sinh viên hoặc Giảng viên mới được kiểm tra thanh toán gói.",
+        )
     result = await session.execute(
         select(PaymentTransaction).where(
             PaymentTransaction.order_code == order_code,
@@ -979,7 +1014,7 @@ async def reconcile_vnpay_payment(
         return VnPayReconcileResponse(
             order_code=order_code,
             status="paid",
-            message="Đã xác nhận thanh toán và kích hoạt Pro.",
+            message="Đã xác nhận thanh toán và kích hoạt gói.",
         )
 
     from src.config import get_settings
@@ -1002,7 +1037,7 @@ async def reconcile_vnpay_payment(
     return VnPayReconcileResponse(
         order_code=order_code,
         status="paid" if status == "paid" else "pending",
-        message="Đã xác nhận thanh toán và kích hoạt Pro." if status == "paid" else msg_pending,
+        message="Đã xác nhận thanh toán và kích hoạt gói." if status == "paid" else msg_pending,
     )
 
 
@@ -1047,7 +1082,12 @@ async def vnpay_ipn(
 @router.get("/billing/vnpay/return", include_in_schema=False)
 async def vnpay_return(request: Request, session: AsyncSession = Depends(get_db)):
     from src.config import get_settings
-    from src.services.billing import _complete_payment
+    from src.services.billing import (
+        _complete_payment,
+        _preserve_payment_metadata,
+        resolve_payment_plan_code,
+        resolve_return_path,
+    )
 
     settings = get_settings()
     tmn_code = (settings.vnpay_tmn_code or "").strip()
@@ -1090,7 +1130,7 @@ async def vnpay_return(request: Request, session: AsyncSession = Depends(get_db)
                 status = "success"
             else:
                 payment.status = "failed"
-                payment.raw_webhook = params
+                payment.raw_webhook = _preserve_payment_metadata(payment.raw_webhook, params)
                 payment.transaction_ref = params.get("vnp_TransactionNo")
                 await session.commit()
                 status = "failed"
@@ -1099,11 +1139,13 @@ async def vnpay_return(request: Request, session: AsyncSession = Depends(get_db)
     elif payment is not None and payment.status == "paid":
         status = "success"
 
-    return_path = "/student/chat"
-    if payment and payment.raw_webhook and isinstance(payment.raw_webhook, dict):
-        custom_return = payment.raw_webhook.get("return_to")
-        if custom_return and isinstance(custom_return, str) and custom_return.startswith("/student/"):
-            return_path = custom_return
+    plan_code = resolve_payment_plan_code(payment)
+    custom_return = (
+        payment.raw_webhook.get("return_to")
+        if payment and isinstance(payment.raw_webhook, dict)
+        else None
+    )
+    return_path = resolve_return_path(custom_return, plan_code)
 
     frontend_base = (settings.frontend_url or "http://localhost:5173").strip().rstrip("/")
     sep = "&" if "?" in return_path else "?"
@@ -1296,9 +1338,10 @@ async def download_sample_quiz_template():
 )
 async def parse_docx_quiz(
     file: UploadFile = File(...),
-    _user=Depends(require_admin_or_lecturer),
+    session: AsyncSession = Depends(get_db),
+    user=Depends(require_admin_or_lecturer),
 ) -> dict:
-    return await parse_docx_quiz_controller(file)
+    return await parse_docx_quiz_controller(session, user, file)
 
 
 @router.post(

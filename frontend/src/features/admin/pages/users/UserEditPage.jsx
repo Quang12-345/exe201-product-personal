@@ -34,22 +34,41 @@ function UserEditPage() {
   const change = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
   const handleRevokePro = async () => {
-    if (!window.confirm(`Xác nhận cắt quyền Pro của người dùng "${form.name}"?\n\nTài khoản sẽ chuyển về gói Free (200.000 tokens/ngày).`)) return
+    const msg = form.isLecturer
+      ? `Xác nhận cắt Gói Giảng viên của "${form.name}"?\n\nTài khoản sẽ chuyển về gói Free (tối đa 5 lớp học, khóa Lịch thi & Nhập đề Word).`
+      : `Xác nhận cắt quyền Pro của người dùng "${form.name}"?\n\nTài khoản sẽ chuyển về gói Free (200.000 tokens/ngày).`
+    if (!window.confirm(msg)) return
     try {
       const updated = await revokePro(id)
-      setForm((prev) => ({ ...prev, ...updated }))
-      notify('Đã cắt quyền Pro thành công. Người dùng về gói Free.')
+      const verified = await getUser(id).catch(() => updated)
+      setForm((prev) => ({ ...prev, ...verified }))
+      if (verified?.isPro || updated?.isPro) {
+        notify(
+          'Máy chủ chưa áp dụng cắt gói (trạng thái vẫn là Đã mua gói). Vui lòng kiểm tra / khởi động lại backend mới nhất.',
+          'error',
+        )
+        return
+      }
+      notify(form.isLecturer ? 'Đã cắt Gói Giảng viên. Người dùng về gói Free (5 lớp).' : 'Đã cắt quyền Pro thành công. Người dùng về gói Free.')
     } catch {
       notify('Thao tác thất bại. Vui lòng thử lại.', 'error')
     }
   }
 
   const handleGrantPro = async () => {
-    if (!window.confirm(`Cấp quyền Pro (30 ngày) cho người dùng "${form.name}"?\n\nTài khoản sẽ được mở rộng 900.000 tokens/ngày.`)) return
+    const msg = form.isLecturer
+      ? `Cấp Gói Giảng viên (30 ngày) cho "${form.name}"?\n\nTài khoản sẽ được tạo tối đa 50 lớp và mở khóa toàn bộ chức năng giảng viên.`
+      : `Cấp quyền Pro (30 ngày) cho người dùng "${form.name}"?\n\nTài khoản sẽ được mở rộng 900.000 tokens/ngày.`
+    if (!window.confirm(msg)) return
     try {
       const updated = await grantPro(id)
-      setForm((prev) => ({ ...prev, ...updated }))
-      notify('Đã cấp quyền Pro (30 ngày) thành công.')
+      const verified = await getUser(id).catch(() => updated)
+      setForm((prev) => ({ ...prev, ...verified }))
+      if (!verified?.isPro) {
+        notify('Máy chủ chưa kích hoạt được gói. Vui lòng kiểm tra lại backend.', 'error')
+        return
+      }
+      notify(form.isLecturer ? 'Đã cấp Gói Giảng viên (30 ngày) thành công.' : 'Đã cấp quyền Pro (30 ngày) thành công.')
     } catch {
       notify('Thao tác thất bại. Vui lòng thử lại.', 'error')
     }
@@ -59,7 +78,8 @@ function UserEditPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const updated = await updateUser(id, form)
+      const { plan: _ignoredPlan, ...profileFields } = form
+      const updated = await updateUser(id, profileFields)
       if (currentUser?.id === id) {
         updateCurrentUser({
           name: updated.name,
@@ -115,12 +135,18 @@ function UserEditPage() {
 
           {/* Card Gói dịch vụ & Bản quyền Pro/Free */}
           <section className="dmrs-card">
-            <h3 className="dmrs-card-title"><SparklesIcon size={18} /> Gói dịch vụ & Hạn mức</h3>
-            {form.isStudent ? (
+            <h3 className="dmrs-card-title"><SparklesIcon size={18} /> Gói dịch vụ &amp; Hạn mức</h3>
+            {form.canManagePlan ? (
               <div>
                 <div className="dmrs-info-row">
                   <span>Gói hiện tại:</span>
-                  {form.isPro ? (
+                  {form.isLecturer ? (
+                    form.isPro ? (
+                      <span className="dmrs-badge dmrs-badge--pro">⭐ Gói Giảng viên (50 lớp)</span>
+                    ) : (
+                      <span className="dmrs-badge dmrs-badge--free">Free (Tối đa 5 lớp)</span>
+                    )
+                  ) : form.isPro ? (
                     <span className="dmrs-badge dmrs-badge--pro">⭐ Gói Pro (900k tokens/ngày)</span>
                   ) : (
                     <span className="dmrs-badge dmrs-badge--free">Gói Free (200k tokens/ngày)</span>
@@ -140,7 +166,7 @@ function UserEditPage() {
                       style={{ width: '100%', justifyContent: 'center' }}
                       onClick={handleRevokePro}
                     >
-                      Cắt quyền Pro (quay về gói Free)
+                      {form.isLecturer ? 'Cắt Gói Giảng viên (về 5 lớp)' : 'Cắt quyền Pro (quay về gói Free)'}
                     </button>
                   ) : (
                     <button
@@ -149,7 +175,8 @@ function UserEditPage() {
                       style={{ width: '100%', justifyContent: 'center' }}
                       onClick={handleGrantPro}
                     >
-                      <SparklesIcon size={16} /> Cấp quyền Pro (30 ngày)
+                      <SparklesIcon size={16} />{' '}
+                      {form.isLecturer ? 'Cấp Gói Giảng viên (30 ngày)' : 'Cấp quyền Pro (30 ngày)'}
                     </button>
                   )}
                 </div>
@@ -161,7 +188,7 @@ function UserEditPage() {
                   <span className="dmrs-badge dmrs-badge--neutral">Tài khoản Hệ thống</span>
                 </div>
                 <p className="dmrs-muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.5 }}>
-                  Tài khoản giảng viên / cán bộ quản trị có hạn mức tối đa hệ thống.
+                  Tài khoản quản trị viên có toàn quyền điều hành hệ thống.
                 </p>
               </div>
             )}

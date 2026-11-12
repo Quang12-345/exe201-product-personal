@@ -285,3 +285,64 @@ async def test_update_user_controller_rejects_assigning_student_role(monkeypatch
     assert exc_info.value.status_code == 400
     assert "Sinh viên tự đăng nhập" in exc_info.value.detail
     assert session.commits == 0
+
+
+@pytest.mark.asyncio
+async def test_grant_and_revoke_pro_supports_lecturer_role_with_real_db():
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from src.db.models import Base, Role, Subscription, User
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    try:
+        async with session_factory() as session:
+            role_lec = Role(id="role-lec", name="lecturer", code="GV", display_name="Giảng viên")
+            lec = User(
+                id="lec-plan-1",
+                username="lecplan1",
+                email="lecplan1@example.com",
+                password="hash",
+                full_name="Giang Vien Plan",
+                role_id="role-lec",
+                status="active",
+            )
+            session.add_all([role_lec, lec])
+            await session.commit()
+
+            # Initial lecturer is free
+            initial = await user_controller.get_user_by_id_controller("lec-plan-1", session)
+            assert initial.roleName == "lecturer"
+            assert initial.plan == "free"
+            assert initial.isPro is False
+
+            # Grant plan -> creates active Subscription with plan_code="lecturer"
+            granted = await user_controller.grant_user_pro_controller(session, "lec-plan-1", days=30)
+            assert granted.plan == "pro"
+            assert granted.isPro is True
+            assert granted.subscriptionExpiresAt is not None
+
+            sub = (
+                await session.execute(select(Subscription).where(Subscription.user_id == "lec-plan-1"))
+            ).scalar_one()
+            assert sub.plan_code == "lecturer"
+            assert sub.status == "active"
+
+            # Revoke plan -> moves lecturer back to free
+            revoked = await user_controller.revoke_user_pro_controller(session, "lec-plan-1")
+            assert revoked.plan == "free"
+            assert revoked.isPro is False
+
+        # Fresh session check (simulates F5 / GET /users reload)
+        async with session_factory() as fresh_session:
+            listed = await user_controller.list_users_controller(fresh_session)
+            lec_row = next(u for u in listed if u.id == "lec-plan-1")
+            assert lec_row.plan == "free"
+            assert lec_row.isPro is False
+    finally:
+        await engine.dispose()
+

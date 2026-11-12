@@ -33,12 +33,29 @@ export function useUsers() {
   const revokePro = async (id) => {
     try {
       const updated = await userService.revokePro(id)
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)))
-      notify('Đã cắt quyền Pro thành công. Người dùng chuyển về gói Free.')
-      return updated
+      const freshList = await userService.getUsers().catch(() => null)
+      if (freshList) {
+        setUsers(freshList)
+      } else {
+        setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)))
+      }
+      const verified = freshList?.find((u) => u.id === id) || updated
+      if (verified?.isPro) {
+        notify(
+          'Máy chủ chưa áp dụng cắt gói (trạng thái vẫn là Đã mua gói). Vui lòng kiểm tra / khởi động lại backend mới nhất.',
+          'error',
+        )
+        return verified
+      }
+      notify(
+        verified?.isLecturer
+          ? 'Đã cắt Gói Giảng viên thành công. Tài khoản chuyển về Free (5 lớp).'
+          : 'Đã cắt quyền Pro thành công. Người dùng chuyển về gói Free.',
+      )
+      return verified
     } catch (err) {
       const detail = err?.response?.data?.detail
-      notify(typeof detail === 'string' ? detail : 'Cắt quyền Pro thất bại. Vui lòng thử lại.', 'error')
+      notify(typeof detail === 'string' ? detail : 'Cắt gói dịch vụ thất bại. Vui lòng thử lại.', 'error')
       throw err
     }
   }
@@ -46,12 +63,29 @@ export function useUsers() {
   const grantPro = async (id) => {
     try {
       const updated = await userService.grantPro(id)
-      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)))
-      notify('Đã cấp quyền Pro (30 ngày) thành công.')
-      return updated
+      const freshList = await userService.getUsers().catch(() => null)
+      if (freshList) {
+        setUsers(freshList)
+      } else {
+        setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)))
+      }
+      const verified = freshList?.find((u) => u.id === id) || updated
+      if (!verified?.isPro) {
+        notify(
+          'Máy chủ chưa kích hoạt được gói (trạng thái vẫn là Free). Vui lòng kiểm tra lại backend.',
+          'error',
+        )
+        return verified
+      }
+      notify(
+        verified?.isLecturer
+          ? 'Đã cấp Gói Giảng viên (30 ngày) thành công.'
+          : 'Đã cấp quyền Pro (30 ngày) thành công.',
+      )
+      return verified
     } catch (err) {
       const detail = err?.response?.data?.detail
-      notify(typeof detail === 'string' ? detail : 'Cấp quyền Pro thất bại. Vui lòng thử lại.', 'error')
+      notify(typeof detail === 'string' ? detail : 'Cấp gói dịch vụ thất bại. Vui lòng thử lại.', 'error')
       throw err
     }
   }

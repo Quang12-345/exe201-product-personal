@@ -217,7 +217,7 @@ export default function QuizPlayer({
           onClick={onUpgradePro}
           disabled={checkoutBusy}
         >
-          {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 99.000đ/tháng'}
+          {checkoutBusy ? 'Đang kết nối...' : '👑 Nâng cấp Pro để mở khóa · 39.000đ/tháng'}
         </button>
       </div>
     )

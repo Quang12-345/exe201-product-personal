@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/context/AuthContext.jsx'
 import {
-  UploadIcon,
   PlusIcon,
   BookOpenIcon,
   UsersIcon,
@@ -11,12 +10,17 @@ import {
   GraduationCapIcon,
   ArrowRightIcon,
   CalendarIcon,
+  SparklesIcon,
 } from '../../../components/common/icons.jsx'
-import { Link } from 'react-router-dom'
 import { getStatsOverview } from '../../../services/statsApi'
 import { getStudents } from '../services/studentService'
 import { getExams, getRecentSubmissions } from '../services/examService'
 import { getClassrooms, createClassroom } from '../services/classroomService'
+import {
+  getBillingStatus,
+  startLecturerCheckout,
+  reconcileProPayment,
+} from '../../student/services/billingService'
 import { notify } from '../../../components/common/toast.jsx'
 
 // Danh sách lớp học dự phòng nếu chưa có dữ liệu
@@ -69,9 +73,18 @@ function formatRelativeTime(dateStr, fallback = 'Vừa xong') {
   }
 }
 
+function formatPlanDate(isoStr) {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 
 function LecturerDashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
 
   // Dữ liệu từ backend
@@ -81,10 +94,20 @@ function LecturerDashboard() {
   const [classrooms, setClassrooms] = useState([])
   const [submissions, setSubmissions] = useState([])
   const [loadingSubmissions, setLoadingSubmissions] = useState(true)
+  const [billing, setBilling] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(true)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [paymentCheckBusy, setPaymentCheckBusy] = useState(false)
+  const [paymentCheckStatus, setPaymentCheckStatus] = useState(null)
+  const [paymentCheckError, setPaymentCheckError] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newClassName, setNewClassName] = useState('')
   const [newClassSubject, setNewClassSubject] = useState('')
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+
+  const paymentResult = searchParams.get('payment') || (searchParams.get('status') === 'PAID' ? 'success' : null)
+  const paymentOrderCode = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
 
   // Tên hiển thị chuẩn giảng viên (khớp giao diện GS. Jenkins)
   const rawName = user?.name || user?.username || 'GS. Jenkins'
@@ -92,14 +115,15 @@ function LecturerDashboard() {
     ? rawName
     : `GS. ${rawName}`
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     Promise.all([
       getStatsOverview().catch(() => null),
       getStudents().catch(() => []),
       getExams().catch(() => []),
       getClassrooms().catch(() => []),
       getRecentSubmissions().catch(() => []),
-    ]).then(([statsData, studentsData, examsData, classData, submData]) => {
+      getBillingStatus().catch(() => null),
+    ]).then(([statsData, studentsData, examsData, classData, submData, billingData]) => {
       if (statsData) setStats(statsData)
       if (Array.isArray(studentsData)) setStudents(studentsData)
       if (Array.isArray(examsData)) setExams(examsData)
@@ -113,14 +137,92 @@ function LecturerDashboard() {
       } else {
         setSubmissions([])
       }
+      if (billingData) setBilling(billingData)
+      setBillingLoading(false)
       setLoadingSubmissions(false)
     })
-  }
-
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
+
+  useEffect(() => {
+    const code = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
+    if (paymentResult === 'success' || code) {
+      if (code) {
+        reconcileProPayment(code)
+          .then((res) => {
+            if (res?.status === 'paid') {
+              getBillingStatus().then(setBilling).catch(() => {})
+            }
+          })
+          .catch(() => {
+            getBillingStatus().then(setBilling).catch(() => {})
+          })
+      } else {
+        getBillingStatus().then(setBilling).catch(() => {})
+      }
+    }
+    if (paymentResult !== 'pending') return undefined
+    let attempts = 0
+    const timer = window.setInterval(async () => {
+      attempts += 1
+      try {
+        const status = await getBillingStatus()
+        setBilling(status)
+        if (status?.is_pro || attempts >= 20) window.clearInterval(timer)
+      } catch {
+        if (attempts >= 20) window.clearInterval(timer)
+      }
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [paymentResult])
+
+  const checkPayment = async () => {
+    if (!paymentOrderCode || paymentCheckBusy) return
+    setPaymentCheckError('')
+    setPaymentCheckBusy(true)
+    try {
+      const result = await reconcileProPayment(paymentOrderCode)
+      setPaymentCheckStatus(result.status)
+      if (result.status === 'paid') {
+        const nextBilling = await getBillingStatus()
+        setBilling(nextBilling)
+        notify('Đã kích hoạt Gói Giảng viên thành công!')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      setPaymentCheckError(typeof detail === 'string' ? detail : detail?.message || 'Chưa kiểm tra được giao dịch.')
+    } finally {
+      setPaymentCheckBusy(false)
+    }
+  }
+
+  const handleUpgradeLecturer = async () => {
+    setCheckoutBusy(true)
+    try {
+      const returnTo = `${location.pathname}${location.search || ''}`
+      const res = await startLecturerCheckout(returnTo)
+      const redirectUrl = res?.checkout_url || res?.payment_url
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+      } else {
+        notify('Không lấy được liên kết thanh toán.', 'error')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      notify(typeof detail === 'string' ? detail : detail?.message || 'Lỗi khi kết nối cổng thanh toán.', 'error')
+    } finally {
+      setCheckoutBusy(false)
+    }
+  }
+
+  const isPaidLecturer = Boolean(billing?.is_pro)
+  const currentClasses = billing?.current_classes ?? classrooms.length
+  const maxClasses = billing?.max_classes ?? (isPaidLecturer ? 50 : 5)
+  const atClassLimit = !billingLoading && currentClasses >= maxClasses
+  const expiresLabel = formatPlanDate(billing?.expires_at)
 
   // Tính số liệu cho 4 thẻ thống kê
   const docCard = stats?.cards?.find((c) => c.key === 'documents')
@@ -142,6 +244,7 @@ function LecturerDashboard() {
     }
 
     setCreating(true)
+    setCreateError('')
     try {
       const created = await createClassroom({
         name: newClassName.trim(),
@@ -151,7 +254,7 @@ function LecturerDashboard() {
       setShowCreateModal(false)
       setNewClassName('')
       setNewClassSubject('')
-      // Reload lại danh sách lớp học
+      // Reload lại danh sách lớp học & hạn mức
       loadData()
       // Điều hướng ngay tới chi tiết lớp vừa tạo
       if (created.id) {
@@ -159,7 +262,10 @@ function LecturerDashboard() {
       }
     } catch (err) {
       const msg = err?.response?.data?.detail || 'Tạo lớp học thất bại, vui lòng thử lại.'
-      notify(typeof msg === 'string' ? msg : 'Lỗi khi tạo lớp học.', 'error')
+      const msgStr = typeof msg === 'string' ? msg : 'Lỗi khi tạo lớp học.'
+      setCreateError(msgStr)
+      notify(msgStr, 'error')
+      getBillingStatus().then(setBilling).catch(() => {})
     } finally {
       setCreating(false)
     }
@@ -201,7 +307,10 @@ function LecturerDashboard() {
           <button
             type="button"
             className="lec-btn-create"
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setCreateError('')
+              setShowCreateModal(true)
+            }}
           >
             <PlusIcon size={18} />
             <span>Tạo lớp học</span>
@@ -217,6 +326,92 @@ function LecturerDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Thanh trạng thái Gói Giảng viên & Hạn mức lớp học */}
+      {!billingLoading && (
+        <div
+          style={{
+            backgroundColor: isPaidLecturer ? '#ECFDF5' : atClassLimit ? '#FEF2F2' : '#FFFBEB',
+            border: '2.5px solid #000000',
+            boxShadow: '4px 4px 0px #000000',
+            borderRadius: 16,
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 14,
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '3px 10px',
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  border: '1.5px solid #000000',
+                  backgroundColor: isPaidLecturer ? '#E5F970' : '#ffffff',
+                  color: '#000000',
+                }}
+              >
+                {isPaidLecturer ? '⭐ GÓI GIẢNG VIÊN' : 'GÓI MIỄN PHÍ'}
+              </span>
+              <strong style={{ fontSize: 14.5, color: '#0f172a' }}>
+                Đã tạo {currentClasses} / {maxClasses} lớp học
+                {isPaidLecturer && expiresLabel ? ` · HSD: ${expiresLabel}` : ''}
+              </strong>
+            </div>
+            <div style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>
+              {isPaidLecturer
+                ? 'Đã mở khóa toàn bộ chức năng: tạo tối đa 50 lớp, Lịch thi trắc nghiệm & Nhập đề Word (.docx).'
+                : atClassLimit
+                  ? 'Bạn đã dùng hết 5/5 lớp miễn phí. Nâng cấp Gói Giảng viên (129.000đ/tháng) để tạo tối đa 50 lớp và mở khóa Lịch thi + Nhập đề Word (.docx).'
+                  : 'Miễn phí tạo tối đa 5 lớp. Nâng cấp 129.000đ/tháng để mở khóa tới 50 lớp, Lịch thi trắc nghiệm và Nhập đề Word (.docx).'}
+            </div>
+            {(paymentResult === 'pending' || paymentCheckStatus || paymentCheckError) && !isPaidLecturer && (
+              <div style={{ fontSize: 12.5, color: paymentCheckError ? '#dc2626' : '#b45309', fontWeight: 700, marginTop: 2 }}>
+                {paymentCheckError ||
+                  (paymentCheckStatus === 'pending'
+                    ? 'Giao dịch đang chờ cổng thanh toán xác nhận...'
+                    : paymentResult === 'pending'
+                      ? 'Đang chờ xác nhận thanh toán...'
+                      : null)}
+              </div>
+            )}
+          </div>
+
+          {!isPaidLecturer && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {paymentOrderCode && (
+                <button
+                  type="button"
+                  className="lec-btn-cancel"
+                  disabled={paymentCheckBusy}
+                  onClick={checkPayment}
+                  style={{ fontSize: 13, padding: '8px 14px' }}
+                >
+                  {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán'}
+                </button>
+              )}
+              <button
+                type="button"
+                className="lec-btn-submit"
+                disabled={checkoutBusy}
+                onClick={handleUpgradeLecturer}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#3b66f5' }}
+              >
+                <SparklesIcon size={16} />
+                <span>{checkoutBusy ? 'Đang chuyển thanh toán...' : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}</span>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 4 Thẻ thống kê chuẩn Neo-brutalist pop */}
       <div className="lec-stat-grid">
@@ -244,7 +439,9 @@ function LecturerDashboard() {
           </div>
           <div className="lec-stat-val">{activeClassesCount}</div>
           <div className="lec-stat-sub">
-            <span className="lec-stat-badge lec-stat-badge--neutral">0 lớp lưu trữ</span>
+            <span className="lec-stat-badge lec-stat-badge--neutral">
+              Hạn mức: {currentClasses}/{maxClasses} lớp
+            </span>
           </div>
         </div>
 
@@ -440,48 +637,119 @@ function LecturerDashboard() {
         <div className="lec-brutal-modal-backdrop" onClick={() => setShowCreateModal(false)}>
           <div className="lec-brutal-modal" onClick={(e) => e.stopPropagation()}>
             <h3 className="lec-modal-head-title">+ Tạo lớp học mới</h3>
-            <form onSubmit={handleCreateClass}>
-              <div className="lec-field-group">
-                <label>Tên lớp học *</label>
-                <input
-                  type="text"
-                  className="lec-input-brutal"
-                  value={newClassName}
-                  onChange={(e) => setNewClassName(e.target.value)}
-                  placeholder="Ví dụ: Lập trình C (Nhóm 02)"
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="lec-field-group">
-                <label>Môn học (tùy chọn)</label>
-                <input
-                  type="text"
-                  className="lec-input-brutal"
-                  value={newClassSubject}
-                  onChange={(e) => setNewClassSubject(e.target.value)}
-                  placeholder="Ví dụ: Lập trình C"
-                />
-              </div>
-
-              <div className="lec-modal-btns">
-                <button
-                  type="button"
-                  className="lec-btn-cancel"
-                  onClick={() => setShowCreateModal(false)}
+            {atClassLimit ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div
+                  style={{
+                    backgroundColor: '#FEF2F2',
+                    border: '2px solid #dc2626',
+                    borderRadius: 10,
+                    padding: '12px 14px',
+                    fontSize: 13.5,
+                    color: '#991b1b',
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                  }}
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="lec-btn-submit"
-                  disabled={creating}
-                >
-                  {creating ? 'Đang tạo...' : 'Tạo lớp học'}
-                </button>
+                  {isPaidLecturer
+                    ? `Bạn đã đạt giới hạn tối đa ${maxClasses} lớp học của Gói Giảng viên.`
+                    : `Bạn đã tạo ${currentClasses}/${maxClasses} lớp học miễn phí. Nâng cấp Gói Giảng viên (129.000đ/tháng) để tạo tối đa 50 lớp và mở khóa toàn bộ tính năng giảng viên.`}
+                </div>
+                <div className="lec-modal-btns">
+                  <button
+                    type="button"
+                    className="lec-btn-cancel"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Đóng
+                  </button>
+                  {!isPaidLecturer && (
+                    <button
+                      type="button"
+                      className="lec-btn-submit"
+                      disabled={checkoutBusy}
+                      onClick={handleUpgradeLecturer}
+                    >
+                      {checkoutBusy ? 'Đang chuyển...' : 'Nâng cấp · 129.000đ/tháng'}
+                    </button>
+                  )}
+                </div>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleCreateClass}>
+                <div className="lec-field-group">
+                  <label>Tên lớp học *</label>
+                  <input
+                    type="text"
+                    className="lec-input-brutal"
+                    value={newClassName}
+                    onChange={(e) => setNewClassName(e.target.value)}
+                    placeholder="Ví dụ: Lập trình C (Nhóm 02)"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="lec-field-group">
+                  <label>Môn học (tùy chọn)</label>
+                  <input
+                    type="text"
+                    className="lec-input-brutal"
+                    value={newClassSubject}
+                    onChange={(e) => setNewClassSubject(e.target.value)}
+                    placeholder="Ví dụ: Lập trình C"
+                  />
+                </div>
+
+                {createError && (
+                  <div
+                    style={{
+                      backgroundColor: '#FEF2F2',
+                      border: '1.5px solid #dc2626',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      marginBottom: 12,
+                      fontSize: 13,
+                      color: '#991b1b',
+                      fontWeight: 600,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <span>{createError}</span>
+                    {!isPaidLecturer && (
+                      <button
+                        type="button"
+                        className="lec-btn-submit"
+                        disabled={checkoutBusy}
+                        onClick={handleUpgradeLecturer}
+                        style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: 12.5 }}
+                      >
+                        {checkoutBusy ? 'Đang chuyển...' : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="lec-modal-btns">
+                  <button
+                    type="button"
+                    className="lec-btn-cancel"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="lec-btn-submit"
+                    disabled={creating}
+                  >
+                    {creating ? 'Đang tạo...' : 'Tạo lớp học'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

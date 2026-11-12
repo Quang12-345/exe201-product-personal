@@ -15,6 +15,8 @@ export function getAssignableRoles() { return ASSIGNABLE_ROLES }
 function toView(u) {
   const roleName = u.roleName ?? u.role
   const isStudent = roleName === 'student'
+  const isLecturer = roleName === 'lecturer'
+  const canManagePlan = isStudent || isLecturer
   const isPro = Boolean(u.isPro)
   const plan = u.plan || (isPro ? 'pro' : 'free')
   return {
@@ -25,6 +27,8 @@ function toView(u) {
     role: ROLE_LABEL[roleName] || roleName || '—',
     rawRole: roleName,
     isStudent,
+    isLecturer,
+    canManagePlan,
     isPro,
     plan,
     subscriptionExpiresAt: u.subscriptionExpiresAt ?? null,

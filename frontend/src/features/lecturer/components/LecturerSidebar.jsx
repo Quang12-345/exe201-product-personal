@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../auth/context/AuthContext.jsx'
+import { getBillingStatus } from '../../student/services/billingService'
 import {
   HomeIcon,
   BookOpenIcon,
@@ -41,6 +43,20 @@ const MENU = [
 
 function LecturerSidebar({ open = false, collapsed = false }) {
   const { user } = useAuth()
+  const [billing, setBilling] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    getBillingStatus()
+      .then((data) => {
+        if (active) setBilling(data)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [user?.id])
+
   const rawName = user?.name || user?.username || 'GS. Jenkins'
   const displayName = rawName.includes('GS.') || rawName.includes('ThS.') || rawName.includes('TS.')
     ? rawName
@@ -88,7 +104,9 @@ function LecturerSidebar({ open = false, collapsed = false }) {
             <div className="lec-user-name" title={displayName}>
               {displayName}
             </div>
-            <div className="lec-user-role">GIẢNG VIÊN</div>
+            <div className="lec-user-role">
+              GIẢNG VIÊN{billing ? (billing.is_pro ? ' · ⭐ PRO' : ' · FREE') : ''}
+            </div>
           </div>
         </Link>
       </div>

@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/context/AuthContext.jsx'
 import { changeMyPassword, getMyProfile } from '../../auth/services/profileService.js'
 import { getClassrooms } from '../services/classroomService'
-import { UserIcon, LockIcon } from '../../../components/common/icons.jsx'
+import {
+  getBillingStatus,
+  startLecturerCheckout,
+  reconcileProPayment,
+} from '../../student/services/billingService'
+import { UserIcon, LockIcon, SparklesIcon } from '../../../components/common/icons.jsx'
 import { notify as showToast } from '../../../components/common/toast.jsx'
 
 const PASSWORD_GUIDE = 'Mật khẩu mới phải có ít nhất 6 ký tự, gồm chữ hoa, số và ký tự đặc biệt.'
@@ -17,23 +23,110 @@ function formatDate(isoStr) {
 
 function LecturerSettings() {
   const { user } = useAuth()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [profileData, setProfileData] = useState(null)
   const [classrooms, setClassrooms] = useState([])
+  const [billing, setBilling] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [checkoutBusy, setCheckoutBusy] = useState(false)
+  const [paymentCheckBusy, setPaymentCheckBusy] = useState(false)
+  const [paymentCheckStatus, setPaymentCheckStatus] = useState(null)
+  const [paymentCheckError, setPaymentCheckError] = useState('')
 
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' })
   const [pwdSaving, setPwdSaving] = useState(false)
+
+  const paymentResult = searchParams.get('payment') || (searchParams.get('status') === 'PAID' ? 'success' : null)
+  const paymentOrderCode = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
 
   useEffect(() => {
     Promise.all([
       getMyProfile().catch(() => null),
       getClassrooms().catch(() => []),
-    ]).then(([me, classList]) => {
+      getBillingStatus().catch(() => null),
+    ]).then(([me, classList, billingData]) => {
       if (me) setProfileData(me)
       if (Array.isArray(classList)) setClassrooms(classList)
+      if (billingData) setBilling(billingData)
       setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    const code = searchParams.get('order_code') || searchParams.get('orderCode') || billing?.pending_order_code
+    if (paymentResult === 'success' || code) {
+      if (code) {
+        reconcileProPayment(code)
+          .then((res) => {
+            if (res?.status === 'paid') {
+              getBillingStatus().then(setBilling).catch(() => {})
+            }
+          })
+          .catch(() => {
+            getBillingStatus().then(setBilling).catch(() => {})
+          })
+      } else {
+        getBillingStatus().then(setBilling).catch(() => {})
+      }
+    }
+    if (paymentResult !== 'pending') return undefined
+    let attempts = 0
+    const timer = window.setInterval(async () => {
+      attempts += 1
+      try {
+        const status = await getBillingStatus()
+        setBilling(status)
+        if (status?.is_pro || attempts >= 20) window.clearInterval(timer)
+      } catch {
+        if (attempts >= 20) window.clearInterval(timer)
+      }
+    }, 3000)
+    return () => window.clearInterval(timer)
+  }, [paymentResult])
+
+  const checkPayment = async () => {
+    if (!paymentOrderCode || paymentCheckBusy) return
+    setPaymentCheckError('')
+    setPaymentCheckBusy(true)
+    try {
+      const result = await reconcileProPayment(paymentOrderCode)
+      setPaymentCheckStatus(result.status)
+      if (result.status === 'paid') {
+        const nextBilling = await getBillingStatus()
+        setBilling(nextBilling)
+        showToast('Đã kích hoạt Gói Giảng viên thành công!')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      setPaymentCheckError(typeof detail === 'string' ? detail : detail?.message || 'Chưa kiểm tra được giao dịch.')
+    } finally {
+      setPaymentCheckBusy(false)
+    }
+  }
+
+  const handleUpgradeLecturer = async () => {
+    setCheckoutBusy(true)
+    try {
+      const returnTo = `${location.pathname}${location.search || ''}`
+      const res = await startLecturerCheckout(returnTo)
+      const redirectUrl = res?.checkout_url || res?.payment_url
+      if (redirectUrl) {
+        window.location.assign(redirectUrl)
+      } else {
+        showToast('Không lấy được liên kết thanh toán.', 'error')
+      }
+    } catch (err) {
+      const detail = err?.response?.data?.detail
+      showToast(typeof detail === 'string' ? detail : detail?.message || 'Lỗi khi kết nối cổng thanh toán.', 'error')
+    } finally {
+      setCheckoutBusy(false)
+    }
+  }
+
+  const isPaidLecturer = Boolean(billing?.is_pro)
+  const currentClasses = billing?.current_classes ?? classrooms.length
+  const maxClasses = billing?.max_classes ?? (isPaidLecturer ? 50 : 5)
 
   const rawName = profileData?.name || user?.name || user?.username || 'Giảng Viên Demo'
   const displayName = rawName.includes('GS.') || rawName.includes('ThS.') || rawName.includes('TS.')
@@ -215,6 +308,100 @@ function LecturerSettings() {
         <p className="dmrs-muted" style={{ marginTop: 14, fontSize: 13 }}>
           Thông tin cá nhân do nhà trường quản lý. Bạn chỉ có thể tự đổi mật khẩu bên dưới.
         </p>
+      </section>
+
+      <section className="dmrs-card" id="lec-set-plan">
+        <div className="dmrs-card-title-row">
+          <h3 className="dmrs-card-title"><SparklesIcon size={18} /> Gói Giảng viên &amp; Hạn mức</h3>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: isPaidLecturer ? '#ECFDF5' : '#FFFBEB',
+            border: '2px solid #000000',
+            boxShadow: '3px 3px 0px #000000',
+            borderRadius: 12,
+            padding: '16px 18px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  border: '1.5px solid #000000',
+                  backgroundColor: isPaidLecturer ? '#E5F970' : '#ffffff',
+                  color: '#000000',
+                }}
+              >
+                {isPaidLecturer ? '⭐ GÓI GIẢNG VIÊN (129.000đ/tháng)' : 'GÓI MIỄN PHÍ'}
+              </span>
+              <strong style={{ fontSize: 14, color: '#0f172a' }}>
+                Đã tạo {currentClasses} / {maxClasses} lớp học
+              </strong>
+            </div>
+            {isPaidLecturer && billing?.expires_at && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#15803d' }}>
+                HSD: {formatDate(billing.expires_at)}
+              </span>
+            )}
+          </div>
+
+          <div style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.55 }}>
+            {isPaidLecturer ? (
+              <span>
+                Tài khoản của thầy/cô đang sử dụng <strong>Gói Giảng viên</strong> với đầy đủ quyền quản lý tối đa <strong>50 lớp học</strong>, Lịch thi trắc nghiệm tự chấm điểm và Nhập đề từ file Word (.docx).
+              </span>
+            ) : (
+              <ul style={{ margin: '4px 0 0 18px', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <li><strong>Gói Miễn phí:</strong> Tạo tối đa <strong>5 lớp học</strong>, tải tài liệu cô lập theo lớp và chat Sổ tay AI.</li>
+                <li><strong>Gói Giảng viên (129.000đ/tháng):</strong> Tạo tối đa <strong>50 lớp học</strong>, mở khóa toàn bộ chức năng giảng viên gồm <strong>Lịch thi trắc nghiệm</strong> &amp; <strong>Nhập đề Word (.docx)</strong>.</li>
+              </ul>
+            )}
+          </div>
+
+          {(paymentResult === 'pending' || paymentCheckStatus || paymentCheckError) && !isPaidLecturer && (
+            <div style={{ fontSize: 13, fontWeight: 700, color: paymentCheckError ? '#dc2626' : '#b45309' }}>
+              {paymentCheckError ||
+                (paymentCheckStatus === 'pending'
+                  ? 'Giao dịch đang chờ cổng thanh toán xác nhận...'
+                  : paymentResult === 'pending'
+                    ? 'Đang chờ xác nhận thanh toán...'
+                    : null)}
+            </div>
+          )}
+
+          {!isPaidLecturer && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="lec-btn-submit"
+                disabled={checkoutBusy}
+                onClick={handleUpgradeLecturer}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#3b66f5' }}
+              >
+                <SparklesIcon size={16} />
+                <span>{checkoutBusy ? 'Đang chuyển thanh toán...' : 'Nâng cấp Gói Giảng viên · 129.000đ/tháng'}</span>
+              </button>
+              {paymentOrderCode && (
+                <button
+                  type="button"
+                  className="lec-btn-cancel"
+                  disabled={paymentCheckBusy}
+                  onClick={checkPayment}
+                >
+                  {paymentCheckBusy ? 'Đang kiểm tra...' : 'Kiểm tra thanh toán'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </section>
 
       <section className="dmrs-card" id="lec-set-security">
