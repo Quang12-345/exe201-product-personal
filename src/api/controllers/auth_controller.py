@@ -232,6 +232,20 @@ async def login_controller(request: LoginRequest, session: AsyncSession) -> Logi
         claims={"email": user.email, "role": role_name},
     )
 
+    # Ghi nhận 1 lượt truy cập hệ thống khi đăng nhập thành công
+    try:
+        from src.repositories import traffic_repo
+
+        await traffic_repo.record_web_visit(
+            session,
+            path=f"/{role_name or 'user'}",
+            page_title=f"Đăng nhập {role_name or 'người dùng'}",
+            user_id=user.id,
+            visitor_id=str(user.id),
+        )
+    except Exception as e:
+        logger.warning("Failed to record login visit: %s", e)
+
     return LoginResponse(
         token=token,
         user=_build_login_user(user, role_name),
@@ -299,6 +313,20 @@ async def gmail_login_controller(
             "login_provider": "google",
         },
     )
+
+    # Ghi nhận 1 lượt truy cập hệ thống khi đăng nhập Google thành công
+    try:
+        from src.repositories import traffic_repo
+
+        await traffic_repo.record_web_visit(
+            session,
+            path=f"/{role_name or 'user'}",
+            page_title=f"Đăng nhập Google {role_name or 'người dùng'}",
+            user_id=user.id,
+            visitor_id=str(user.id),
+        )
+    except Exception as e:
+        logger.warning("Failed to record gmail login visit: %s", e)
 
     return GmailLoginResponse(
         access_token=token,

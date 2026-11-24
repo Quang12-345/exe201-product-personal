@@ -3,9 +3,10 @@
 from collections import Counter
 from datetime import datetime, timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import User
+from src.db.models import User, WebVisit
 from src.db.roles import role_display_name
 from src.models.stats import (
     AnalyticsStat,
@@ -108,6 +109,15 @@ async def stats_overview_controller(session: AsyncSession, user: User) -> StatsO
         # Đếm ĐỒNG NHẤT với trang "Quản lý người dùng": bỏ tài khoản đã vô hiệu hóa
         # (status='deleted') và bỏ chính tài khoản đang xem (trang quản lý không liệt kê).
         visible_users = [u for u in users if u.status != "deleted" and u.id != user.id]
+
+        total_visits = (await session.execute(select(func.count(WebVisit.id)))).scalar() or 0
+        start_of_today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_visits = (
+            await session.execute(
+                select(func.count(WebVisit.id)).where(WebVisit.created_at >= start_of_today)
+            )
+        ).scalar() or 0
+
         cards = [
             StatCard(key="users", label="Tổng người dùng", value=len(visible_users)),
             StatCard(key="documents", label="Tổng tài liệu", value=len(documents),
@@ -116,6 +126,9 @@ async def stats_overview_controller(session: AsyncSession, user: User) -> StatsO
                      value=await conversation_repo.count_conversations(session)),
             StatCard(key="queries", label="Tổng lượt hỏi AI",
                      value=await conversation_repo.count_agent_runs(session)),
+            StatCard(key="visits", label="Lượt truy cập web",
+                     value=total_visits,
+                     note=f"{today_visits} lượt hôm nay"),
         ]
         return StatsOverview(role=role, cards=cards, recent_documents=_recent(documents, owners))
 

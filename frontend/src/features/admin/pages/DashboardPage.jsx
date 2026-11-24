@@ -12,6 +12,8 @@ import {
   FileTextIcon,
   GridIcon,
   ArrowRightIcon,
+  CreditCardIcon,
+  GlobeIcon,
 } from '../../../components/common/icons.jsx'
 
 const CARD_CONFIG = {
@@ -30,6 +32,10 @@ const CARD_CONFIG = {
   queries: {
     icon: <BarChartIcon size={18} />,
     variant: 'red',
+  },
+  visits: {
+    icon: <GlobeIcon size={18} />,
+    variant: 'green',
   },
 }
 
@@ -62,6 +68,14 @@ function DashboardPage() {
       to: '/admin/users',
       color: '#ca8a04',
       bg: '#fefce8',
+    },
+    {
+      label: 'Tài chính & Doanh thu',
+      desc: 'Dòng tiền, chi phí AI & Unit Economics',
+      icon: <CreditCardIcon size={22} />,
+      to: '/admin/finance',
+      color: '#16a34a',
+      bg: '#f0fdf4',
     },
     {
       label: 'Thống kê & Đánh giá',

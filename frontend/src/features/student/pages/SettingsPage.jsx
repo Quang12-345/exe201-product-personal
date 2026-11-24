@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/context/AuthContext.jsx'
 import { changeMyPassword } from '../../auth/services/profileService.js'
-import { CameraIcon, UserIcon, LockIcon, ChevronRightIcon } from '../../../components/common/icons.jsx'
+import { CameraIcon, UserIcon, LockIcon, ChevronRightIcon, SparklesIcon } from '../../../components/common/icons.jsx'
+import CustomerReviewModal from '../../../components/common/CustomerReviewModal.jsx'
 import { comingSoon } from '../../../components/common/comingSoon.jsx'
 import { notify as showToast } from '../../../components/common/toast.jsx'
 
 const NAV = [
   { key: 'profile', label: 'Thông tin cá nhân', icon: UserIcon },
   { key: 'security', label: 'Bảo mật & Mật khẩu', icon: LockIcon },
+  { key: 'review', label: 'Đánh giá & Góp ý', icon: SparklesIcon },
 ]
 
 const PASSWORD_GUIDE = 'Mật khẩu mới phải có ít nhất 6 ký tự, gồm chữ hoa, số và ký tự đặc biệt.'
@@ -27,6 +29,7 @@ function profileFromUser(user) {
 function SettingsPage() {
   const { user } = useAuth()
   const [active, setActive] = useState('profile')
+  const [reviewModalOpen, setReviewModalOpen] = useState(false)
   const profile = profileFromUser(user)
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' })
   const [pwdSaving, setPwdSaving] = useState(false)
@@ -133,8 +136,33 @@ function SettingsPage() {
               <button className="st-btn st-btn--primary" onClick={submitPassword} disabled={pwdSaving}>{pwdSaving ? 'Đang đổi...' : 'Đổi mật khẩu'}</button>
             </section>
           )}
+
+          {active === 'review' && (
+            <section className="st-card">
+              <div className="st-card-title-row">
+                <h3 className="st-card-title">Đánh giá & Góp ý ứng dụng</h3>
+              </div>
+              <p className="st-muted" style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+                StudyMind không ngừng phát triển dựa trên những ý kiến chân thực nhất từ cộng đồng sinh viên và giảng viên.
+                Hãy chia sẻ cảm nhận của bạn về trợ lý AI, flashcard 3D hoặc bài thi trắc nghiệm nhé!
+              </p>
+              <button
+                type="button"
+                className="st-btn st-btn--primary"
+                onClick={() => setReviewModalOpen(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                <span>⭐</span> Mở biểu mẫu đánh giá
+              </button>
+            </section>
+          )}
         </div>
       </div>
+
+      <CustomerReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+      />
     </div>
   )
 }

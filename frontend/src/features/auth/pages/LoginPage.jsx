@@ -5,6 +5,7 @@ import { HOME_BY_ROLE } from "../services/authService";
 import { GOOGLE_CLIENT_ID } from "../../../constants";
 import { EyeIcon, EyeOffIcon } from "../../../components/common/icons.jsx";
 import { ALLOWED_ADMIN_SUFFIXES, checkAdminSuffix } from "../utils/adminAuth.js";
+import CustomerTestimonialsSection from "../components/CustomerTestimonialsSection.jsx";
 import "./LoginPage.css";
 
 // Biểu tượng Logo StudyMind (Tia sét với tia sao phát sáng)
@@ -736,6 +737,9 @@ function LoginPage() {
           </button>
         </div>
       </div>
+
+      {/* Minh chứng khách hàng & Đánh giá thực tế (Social Proof cho EXE201) */}
+      <CustomerTestimonialsSection />
     </div>
   );
 }

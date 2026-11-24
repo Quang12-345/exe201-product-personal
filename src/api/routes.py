@@ -27,6 +27,7 @@ from src.api.controllers import (
     delete_feedback_controller,
     delete_flashcard_controller,
     delete_quiz_controller,
+    delete_review_controller,
     delete_student_controller,
     delete_user_controller,
     diagnostics_controller,
@@ -34,13 +35,20 @@ from src.api.controllers import (
     eval_report_controller,
     feedback_summary_controller,
     forgot_password_controller,
+    generate_attempt_evaluation_controller,
     generate_flashcards_controller,
     generate_quiz_controller,
+    get_admin_reviews_controller,
+    get_attempt_evaluation_controller,
+    get_attempt_review_controller,
     get_classroom_controller,
     get_document_download_controller,
     get_exam_resources_controller,
+    get_finance_report_controller,
     get_messages_controller,
+    get_public_reviews_controller,
     get_quiz_controller,
+    get_traffic_stats_controller,
     get_user_by_id_controller,
     gmail_login_controller,
     grant_user_pro_controller,
@@ -59,6 +67,7 @@ from src.api.controllers import (
     list_exams_controller,
     list_my_attempts_controller,
     list_my_documents_controller,
+    list_my_evaluations_controller,
     list_quiz_attempts_controller,
     list_recent_submissions_controller,
     list_roles_controller,
@@ -67,6 +76,7 @@ from src.api.controllers import (
     login_controller,
     mark_document_viewed_controller,
     parse_docx_quiz_controller,
+    record_visit_controller,
     register_link_document_controller,
     remove_student_from_classroom_controller,
     rename_conversation_controller,
@@ -77,12 +87,11 @@ from src.api.controllers import (
     stats_overview_controller,
     submit_feedback_controller,
     submit_quiz_controller,
-    generate_attempt_evaluation_controller,
-    get_attempt_evaluation_controller,
-    list_my_evaluations_controller,
-    get_attempt_review_controller,
+    submit_review_controller,
     submit_signal_controller,
     suggest_metadata_controller,
+    toggle_feature_controller,
+    toggle_publish_controller,
     update_classroom_controller,
     update_document_controller,
     update_exam_controller,
@@ -93,14 +102,16 @@ from src.api.controllers import (
     view_document_controller,
     view_document_text_controller,
 )
-from src.api.dependencies import get_current_user, get_current_user_any_status, require_roles
+from src.api.dependencies import get_current_user, get_current_user_any_status, get_optional_user, require_roles
 from src.db.models import PaymentTransaction
 from src.db.session import get_db
 from src.models import (
+    AdminReviewsResponse,
     ChangePasswordRequest,
     ChatRequest,
     ChatResponse,
     ConversationSummary,
+    CreateReviewRequest,
     CreateUserRequest,
     CustomQuizCreate,
     DeleteConversationResponse,
@@ -113,6 +124,7 @@ from src.models import (
     FeedbackRequest,
     FeedbackResponse,
     FeedbackSummary,
+    FinanceReportResponse,
     FlashcardCreate,
     FlashcardItem,
     ForgotPasswordRequest,
@@ -122,19 +134,23 @@ from src.models import (
     GmailLoginRequest,
     GmailLoginResponse,
     IngestResponse,
+    LearningEvaluationResponse,
     LinkDocumentRequest,
     LoginRequest,
     LoginResponse,
     MessageItem,
+    PublicReviewsResponse,
     QuizItem,
     QuizSubmitRequest,
     QuizSubmitResponse,
     QuizSummary,
     RecentSubmissionItem,
-    LearningEvaluationResponse,
+    RecordVisitRequest,
+    RecordVisitResponse,
     RenameConversationRequest,
     ResetPasswordRequest,
     ResetPasswordResponse,
+    ReviewItem,
     RoleResponse,
     SignalRequest,
     SignalsSummary,
@@ -150,6 +166,7 @@ from src.models import (
     UserResponse,
     VerifyOtpRequest,
     VerifyOtpResponse,
+    WebTrafficStatsResponse,
 )
 from src.models.billing import (
     PaymentReceiptResponse,
@@ -1515,4 +1532,144 @@ async def list_my_evaluations(
     user=Depends(get_current_user),
 ) -> list[LearningEvaluationResponse]:
     return await list_my_evaluations_controller(session, user, limit=limit)
+
+@router.post(
+    "/reviews",
+    response_model=ReviewItem,
+    tags=["reviews"],
+    summary="Submit customer review/feedback for StudyMind",
+)
+async def submit_review(
+    request: CreateReviewRequest,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_optional_user),
+) -> ReviewItem:
+    """Người dùng (sinh viên, giảng viên) gửi đánh giá, chấm sao và cảm nhận về StudyMind."""
+    return await submit_review_controller(request, session, user)
+
+
+@router.get(
+    "/reviews/public",
+    response_model=PublicReviewsResponse,
+    tags=["reviews"],
+    summary="Get public customer reviews and CSAT statistics",
+)
+async def get_public_reviews(
+    session: AsyncSession = Depends(get_db),
+) -> PublicReviewsResponse:
+    """Lấy danh sách các đánh giá khách hàng công khai kèm điểm trung bình và phân bổ sao."""
+    return await get_public_reviews_controller(session)
+
+
+@router.get(
+    "/admin/reviews",
+    response_model=AdminReviewsResponse,
+    tags=["admin", "reviews"],
+    summary="Get all customer reviews and full CSAT analytics for admin",
+)
+async def get_admin_reviews(
+    session: AsyncSession = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> AdminReviewsResponse:
+    """Admin lấy danh sách toàn bộ đánh giá của người dùng kèm phân tích CSAT."""
+    return await get_admin_reviews_controller(session)
+
+
+@router.patch(
+    "/admin/reviews/{review_id}/toggle-publish",
+    response_model=ReviewItem,
+    tags=["admin", "reviews"],
+    summary="Toggle review publish state",
+)
+async def toggle_publish_review_route(
+    review_id: str,
+    session: AsyncSession = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> ReviewItem:
+    """Admin bật/tắt hiển thị đánh giá trên trang chủ."""
+    return await toggle_publish_controller(review_id, session)
+
+
+@router.patch(
+    "/admin/reviews/{review_id}/toggle-feature",
+    response_model=ReviewItem,
+    tags=["admin", "reviews"],
+    summary="Toggle review featured state",
+)
+async def toggle_feature_review_route(
+    review_id: str,
+    session: AsyncSession = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> ReviewItem:
+    """Admin ghim/bỏ ghim đánh giá nổi bật."""
+    return await toggle_feature_controller(review_id, session)
+
+
+@router.delete(
+    "/admin/reviews/{review_id}",
+    tags=["admin", "reviews"],
+    summary="Delete a customer review",
+)
+async def delete_review_route(
+    review_id: str,
+    session: AsyncSession = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> dict:
+    """Admin xóa một đánh giá khách hàng."""
+    return await delete_review_controller(review_id, session)
+
+
+@router.get(
+    "/admin/finance/overview",
+    response_model=FinanceReportResponse,
+    tags=["admin", "finance"],
+    summary="Get financial revenue, cost and transaction report for Admin",
+)
+async def get_admin_finance_report_route(
+    session: AsyncSession = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> FinanceReportResponse:
+    """Admin theo dõi báo cáo doanh thu, chi phí API, máy chủ và lịch sử giao dịch."""
+    return await get_finance_report_controller(session)
+
+
+@router.post(
+    "/tracking/visit",
+    response_model=RecordVisitResponse,
+    tags=["tracking"],
+    summary="Record a web page view/visit",
+)
+async def record_web_visit_route(
+    request_body: RecordVisitRequest,
+    req: Request,
+    session: AsyncSession = Depends(get_db),
+    user=Depends(get_optional_user),
+) -> RecordVisitResponse:
+    """Ghi nhận lượt xem trang web của sinh viên / khách truy cập."""
+    client_host = req.client.host if req.client else None
+    user_agent = req.headers.get("user-agent")
+    return await record_visit_controller(
+        request_body,
+        session,
+        user=user,
+        ip_address=client_host,
+        user_agent=user_agent,
+    )
+
+
+@router.get(
+    "/admin/traffic/stats",
+    response_model=WebTrafficStatsResponse,
+    tags=["admin", "traffic"],
+    summary="Get web traffic and visitor analytics for Admin",
+)
+async def get_admin_traffic_stats_route(
+    range: str = "14d",
+    session: AsyncSession = Depends(get_db),
+    _admin=Depends(require_admin),
+) -> WebTrafficStatsResponse:
+    """Admin theo dõi thống kê lượt truy cập website, khách duy nhất và top trang phổ biến."""
+    return await get_traffic_stats_controller(session, range_key=range)
+
+
 

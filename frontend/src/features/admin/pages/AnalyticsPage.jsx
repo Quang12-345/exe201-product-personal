@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import StatCard from '../components/StatCard.jsx'
 import StatusBadge from '../components/StatusBadge.jsx'
 import FeedbackSummaryCard from '../components/FeedbackSummaryCard.jsx'
+import AdminCustomerReviewsReport from '../components/AdminCustomerReviewsReport.jsx'
+import AdminWebTrafficSection from '../components/AdminWebTrafficSection.jsx'
 import { useAsync } from '../hooks/useAsync.js'
 import { getAnalytics } from '../services/analyticsService'
 import { getSignalsSummary } from '../../../services/feedbackService'
@@ -111,6 +113,8 @@ function AnalyticsPage() {
       </div>
 
       <FeedbackSummaryCard />
+      <AdminWebTrafficSection />
+      <AdminCustomerReviewsReport />
 
       {/* Tín hiệu ngầm & hệ thống — gộp từ trang "Chất lượng AI" cũ */}
       {signals && (

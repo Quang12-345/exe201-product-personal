@@ -77,6 +77,19 @@ async def get_current_user_any_status(
     return user
 
 
+async def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    session: AsyncSession = Depends(get_db),
+) -> User | None:
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        user = await get_current_user_any_status(credentials, session)
+        return user if user.status == "active" else None
+    except Exception:
+        return None
+
+
 def require_roles(*roles: str):
     """Dependency factory: allow only users whose role is in `roles`."""
 

@@ -147,6 +147,8 @@ async def _ensure_schema_upgrades(conn) -> None:
     needs_exam_document_id = bool(exam_cols) and "document_id" not in exam_cols
     needs_exam_quiz_id = bool(exam_cols) and "quiz_id" not in exam_cols
     needs_learning_evaluations_table = "learning_evaluations" not in table_names
+    needs_customer_reviews_table = "customer_reviews" not in table_names
+    needs_web_visits_table = "web_visits" not in table_names
 
     if (
         not needs_username
@@ -162,6 +164,8 @@ async def _ensure_schema_upgrades(conn) -> None:
         and not needs_exam_document_id
         and not needs_exam_quiz_id
         and not needs_learning_evaluations_table
+        and not needs_customer_reviews_table
+        and not needs_web_visits_table
     ):
         return  # đã ở trạng thái mục tiêu → không chạy DDL
 
@@ -236,6 +240,55 @@ async def _ensure_schema_upgrades(conn) -> None:
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_learning_evaluations_user_id ON learning_evaluations (user_id)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_learning_evaluations_quiz_id ON learning_evaluations (quiz_id)"))
             await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_learning_evaluations_attempt_id ON learning_evaluations (attempt_id)"))
+        except Exception:
+            pass
+
+
+    if needs_customer_reviews_table:
+        await conn.execute(text('''
+            CREATE TABLE IF NOT EXISTS customer_reviews (
+                id VARCHAR(36) PRIMARY KEY,
+                user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL,
+                user_name VARCHAR(100) NOT NULL DEFAULT 'Sinh viên StudyMind',
+                role_tag VARCHAR(100) NOT NULL DEFAULT 'Sinh viên',
+                avatar_url VARCHAR(255),
+                rating INTEGER NOT NULL DEFAULT 5,
+                title VARCHAR(200) NOT NULL DEFAULT '',
+                comment TEXT NOT NULL DEFAULT '',
+                category VARCHAR(50) NOT NULL DEFAULT 'general',
+                is_published BOOLEAN NOT NULL DEFAULT TRUE,
+                is_featured BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+            )
+        '''))
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_customer_reviews_user_id ON customer_reviews (user_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_customer_reviews_is_published ON customer_reviews (is_published)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_customer_reviews_is_featured ON customer_reviews (is_featured)"))
+        except Exception:
+            pass
+
+    if needs_web_visits_table:
+        await conn.execute(text('''
+            CREATE TABLE IF NOT EXISTS web_visits (
+                id VARCHAR(36) PRIMARY KEY,
+                path VARCHAR(255) NOT NULL,
+                page_title VARCHAR(255) NOT NULL DEFAULT '',
+                user_id VARCHAR(36) REFERENCES users(id) ON DELETE SET NULL,
+                visitor_id VARCHAR(64) NOT NULL,
+                ip_address VARCHAR(64),
+                user_agent VARCHAR(500),
+                device_type VARCHAR(32) NOT NULL DEFAULT 'desktop',
+                referrer VARCHAR(500),
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+            )
+        '''))
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_web_visits_path ON web_visits (path)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_web_visits_user_id ON web_visits (user_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_web_visits_visitor_id ON web_visits (visitor_id)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_web_visits_created_at ON web_visits (created_at)"))
         except Exception:
             pass
 

@@ -1,0 +1,245 @@
+/* ==========================================================================
+   Admin Customer Reviews Report — Neo-brutalist (EXE201 CSAT Dashboard)
+   ========================================================================== */
+
+.acrr-wrapper {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.acrr-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.acrr-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acrr-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.acrr-subtitle {
+  font-size: 13.5px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* KPI Summary Cards */
+.acrr-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.acrr-kpi-card {
+  background: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 16px;
+  padding: 16px 20px;
+  box-shadow: 3.5px 3.5px 0px #000000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acrr-kpi-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.acrr-kpi-val {
+  font-size: 28px;
+  font-weight: 900;
+  color: #0f172a;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.acrr-kpi-val--csat {
+  color: #16a34a;
+}
+
+.acrr-kpi-val--star {
+  color: #eab308;
+}
+
+.acrr-kpi-note {
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Breakdown card */
+.acrr-breakdown-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.acrr-breakdown-card {
+  background: #f8fafc;
+  border: 2px solid #000000;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 3px 3px 0px #000000;
+}
+
+.acrr-breakdown-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0 0 14px 0;
+}
+
+.acrr-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.acrr-bar-track {
+  flex-grow: 1;
+  height: 10px;
+  background: #e2e8f0;
+  border: 1.5px solid #000000;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.acrr-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.acrr-bar-fill--5 { background: #16a34a; }
+.acrr-bar-fill--4 { background: #84cc16; }
+.acrr-bar-fill--3 { background: #eab308; }
+.acrr-bar-fill--2 { background: #f97316; }
+.acrr-bar-fill--1 { background: #ef4444; }
+
+/* Filter toolbar */
+.acrr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: #ffffff;
+  border: 2px solid #000000;
+  border-radius: 16px;
+  box-shadow: 3px 3px 0px #000000;
+}
+
+.acrr-search-input {
+  border: 1.8px solid #000000;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  min-width: 240px;
+  outline: none;
+}
+
+.acrr-search-input:focus {
+  border-color: #2563eb;
+}
+
+.acrr-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.acrr-select {
+  border: 1.8px solid #000000;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+/* Action buttons */
+.acrr-btn-action {
+  border: 1.6px solid #000000;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 1.5px 1.5px 0px #000000;
+  transition: all 0.1s ease;
+  background: #ffffff;
+}
+
+.acrr-btn-action:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2.5px 2.5px 0px #000000;
+}
+
+.acrr-btn-action.is-active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.acrr-btn-action--del {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
+.acrr-btn-action--del:hover {
+  background: #fee2e2;
+}
+
+/* Category badge */
+.acrr-badge-cat {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border: 1.2px solid #000000;
+  background: #f1f5f9;
+}
+
+@media (max-width: 992px) {
+  .acrr-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .acrr-breakdown-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .acrr-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}

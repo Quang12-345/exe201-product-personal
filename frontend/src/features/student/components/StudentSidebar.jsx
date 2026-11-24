@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { NavLink, Link } from 'react-router-dom'
 import { useAuth } from '../../auth/context/AuthContext.jsx'
+import CustomerReviewModal from '../../../components/common/CustomerReviewModal.jsx'
 import {
   HomeIcon,
   BookOpenIcon,
@@ -41,6 +43,7 @@ const MENU = [
 
 function StudentSidebar({ open = false, collapsed = false }) {
   const { user } = useAuth()
+  const [reviewModalOpen, setReviewModalOpen] = useState(false)
   const displayName = user?.name || user?.username || 'Sarah Carter'
 
   return (
@@ -73,6 +76,35 @@ function StudentSidebar({ open = false, collapsed = false }) {
         ))}
       </nav>
 
+      {/* Nút gửi đánh giá & góp ý */}
+      <div style={{ padding: '0 12px 10px 12px' }}>
+        <button
+          type="button"
+          onClick={() => setReviewModalOpen(true)}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '9px 12px',
+            backgroundColor: '#fef08a',
+            color: '#854d0e',
+            border: '2px solid #000000',
+            borderRadius: '12px',
+            fontWeight: 800,
+            fontSize: '13px',
+            cursor: 'pointer',
+            boxShadow: '2.5px 2.5px 0px #000000',
+            transition: 'all 0.15s ease',
+          }}
+          title="Đánh giá & Góp ý cho StudyMind"
+        >
+          <span>⭐</span>
+          {!collapsed && <span>Đánh giá StudyMind</span>}
+        </button>
+      </div>
+
       {/* Card thông tin người dùng ở chân Sidebar */}
       <div className="st-sidebar-footer">
         <Link to="/student/settings" className="st-user-card" title="Xem hồ sơ">
@@ -87,6 +119,11 @@ function StudentSidebar({ open = false, collapsed = false }) {
           </div>
         </Link>
       </div>
+
+      <CustomerReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+      />
     </aside>
   )
 }

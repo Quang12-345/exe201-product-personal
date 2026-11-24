@@ -64,6 +64,15 @@ from src.api.controllers.document_controller import (
     view_document_controller,
     view_document_text_controller,
 )
+from src.api.controllers.finance_controller import get_finance_report_controller
+from src.api.controllers.review_controller import (
+    delete_review_controller,
+    get_admin_reviews_controller,
+    get_public_reviews_controller,
+    submit_review_controller,
+    toggle_feature_controller,
+    toggle_publish_controller,
+)
 from src.api.controllers.stats_controller import stats_analytics_controller, stats_overview_controller
 from src.api.controllers.study_aid_controller import (
     create_custom_quiz_controller,
@@ -71,21 +80,25 @@ from src.api.controllers.study_aid_controller import (
     delete_flashcard_controller,
     delete_quiz_controller,
     download_sample_quiz_template_controller,
+    generate_attempt_evaluation_controller,
     generate_flashcards_controller,
     generate_quiz_controller,
+    get_attempt_evaluation_controller,
+    get_attempt_review_controller,
     get_quiz_controller,
     import_docx_quiz_controller,
     list_document_flashcards_controller,
     list_document_quizzes_controller,
     list_my_attempts_controller,
+    list_my_evaluations_controller,
     list_quiz_attempts_controller,
     list_recent_submissions_controller,
     parse_docx_quiz_controller,
     submit_quiz_controller,
-    generate_attempt_evaluation_controller,
-    get_attempt_evaluation_controller,
-    list_my_evaluations_controller,
-    get_attempt_review_controller,
+)
+from src.api.controllers.traffic_controller import (
+    get_traffic_stats_controller,
+    record_visit_controller,
 )
 from src.api.controllers.user_controller import (
     build_user_response,
@@ -185,5 +198,14 @@ __all__ = [
     "list_enrolled_classrooms_controller",
     "remove_student_from_classroom_controller",
     "update_classroom_controller",
+    "delete_review_controller",
+    "get_admin_reviews_controller",
+    "get_public_reviews_controller",
+    "get_finance_report_controller",
+    "get_traffic_stats_controller",
+    "record_visit_controller",
+    "submit_review_controller",
+    "toggle_feature_controller",
+    "toggle_publish_controller",
 ]
 

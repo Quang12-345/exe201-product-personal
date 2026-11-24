@@ -97,6 +97,12 @@ class User(Base):
     quiz_attempts: Mapped[list[UserQuizAttempt]] = relationship(
         back_populates="student", passive_deletes=True
     )
+    customer_reviews: Mapped[list[CustomerReview]] = relationship(
+        back_populates="user", passive_deletes=True
+    )
+    web_visits: Mapped[list[WebVisit]] = relationship(
+        back_populates="user", passive_deletes=True
+    )
     flashcards: Mapped[list[Flashcard]] = relationship(
         back_populates="user", passive_deletes=True
     )
@@ -626,3 +632,49 @@ class LearningEvaluation(Base):
     user: Mapped[User] = relationship()
     quiz: Mapped[Quiz] = relationship()
     attempt: Mapped[UserQuizAttempt | None] = relationship()
+
+class CustomerReview(Base):
+    """Đánh giá / nhận xét của khách hàng (sinh viên, giảng viên) về sản phẩm StudyMind."""
+
+    __tablename__ = "customer_reviews"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_name: Mapped[str] = mapped_column(String(100), default="Sinh viên StudyMind")
+    role_tag: Mapped[str] = mapped_column(String(100), default="Sinh viên")
+    avatar_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    rating: Mapped[int] = mapped_column(Integer, default=5)  # 1..5 sao
+    title: Mapped[str] = mapped_column(String(200), default="")
+    comment: Mapped[str] = mapped_column(Text, default="")
+    category: Mapped[str] = mapped_column(String(50), default="general")
+    is_published: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_featured: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+    user: Mapped[User | None] = relationship(back_populates="customer_reviews")
+
+
+class WebVisit(Base):
+    """Ghi nhận lượt truy cập trang web (Page Views & Visitors) phục vụ phân tích lưu lượng cho Admin."""
+
+    __tablename__ = "web_visits"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    path: Mapped[str] = mapped_column(String(255), index=True)
+    page_title: Mapped[str] = mapped_column(String(255), default="")
+    user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    visitor_id: Mapped[str] = mapped_column(String(64), index=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    device_type: Mapped[str] = mapped_column(String(32), default="desktop")
+    referrer: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now, index=True)
+
+    user: Mapped[User | None] = relationship(back_populates="web_visits")
+
+
