@@ -63,9 +63,11 @@ async def test_retrieve_node_falls_back_to_lower_threshold(monkeypatch):
     """Khi ngưỡng chính không ra chunk nào, phải truy hồi lại với ngưỡng dự phòng
     để tài liệu đã lập chỉ mục (điểm cosine vừa phải) vẫn trả lời được."""
     calls: list[float | None] = []
+    access_filters = []
 
     async def fake_search(*, query_vector, top_k, score_threshold=None, query_filter=None):
         calls.append(score_threshold)
+        access_filters.append(query_filter)
         # Vòng 1 (ngưỡng cao) rỗng; vòng 2 (ngưỡng thấp) trả 1 chunk liên quan vừa phải.
         if len(calls) == 1:
             return []
@@ -93,9 +95,13 @@ async def test_retrieve_node_falls_back_to_lower_threshold(monkeypatch):
     async def fake_session():
         yield object()
 
+    async def accessible_docs(_state):
+        return ["d1"]
+
     monkeypatch.setattr(retrieve_node, "search_similar", fake_search)
     monkeypatch.setattr(retrieve_node, "get_chunks_by_ids", fake_get_chunks)
     monkeypatch.setattr(retrieve_node, "AsyncSessionLocal", fake_session)
+    monkeypatch.setattr(retrieve_node, "_get_accessible_document_ids", accessible_docs)
 
     result = await retrieve_node.retrieve_context_node(
         {"query_embedding": [0.1] * 1536, "top_k": 5, "user_role": "student", "user_id": "s1"}
@@ -104,6 +110,9 @@ async def test_retrieve_node_falls_back_to_lower_threshold(monkeypatch):
     # Đã gọi 2 lần: ngưỡng chính rồi ngưỡng dự phòng (thấp hơn).
     assert len(calls) == 2
     assert calls[0] > calls[1]
+    assert all(
+        query_filter.must[0].match.any == ["d1"] for query_filter in access_filters
+    )
     assert "error" not in result
     assert len(result["retrieved_chunks"]) == 1
     assert "20%" in result["context"]

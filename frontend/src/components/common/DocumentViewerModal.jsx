@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { renderAsync } from 'docx-preview'
 import { FileTextIcon, XIcon, DownloadIcon, LinkIcon, YouTubeIcon } from './icons.jsx'
 import { notify } from './toast.jsx'
+import { findQuoteRange } from './documentQuote.js'
 import { fetchDocBlob, fetchDocBlobUrl, fetchDocText } from '../../services/documentViewService'
 import './DocumentViewerModal.css'
 
@@ -23,34 +24,6 @@ function youtubeEmbed(url) {
   if (!url) return null
   const m = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/)
   return m ? `https://www.youtube.com/embed/${m[1]}` : null
-}
-
-// Tìm vị trí đoạn trích (quote) trong văn bản, chịu được khác biệt khoảng trắng/xuống dòng.
-// Trả {start, end} theo chỉ số của text GỐC, hoặc null nếu không khớp.
-function findQuoteRange(text, quote) {
-  if (!text || !quote) return null
-  // Chuẩn hoá text + giữ map chỉ số normalize → gốc.
-  const map = []
-  let norm = ''
-  let lastSpace = true
-  for (let i = 0; i < text.length; i++) {
-    const ch = /\s/.test(text[i]) ? ' ' : text[i].toLowerCase()
-    if (ch === ' ' && lastSpace) continue
-    norm += ch
-    map.push(i)
-    lastSpace = ch === ' '
-  }
-  const cleanQuote = quote.replace(/\s+/g, ' ').trim().toLowerCase()
-  // Thử khớp tiền tố dài → ngắn dần (chunk có thể bị cắt/lệch vài ký tự cuối).
-  for (const len of [300, 180, 100, 60, 40]) {
-    const needle = cleanQuote.slice(0, len)
-    if (needle.length < 25 && len !== 40) continue
-    const idx = norm.indexOf(needle)
-    if (idx >= 0) {
-      return { start: map[idx], end: map[Math.min(idx + needle.length, map.length) - 1] + 1 }
-    }
-  }
-  return null
 }
 
 // Văn bản có bôi sáng đoạn trích + tự cuộn tới (dùng cho chế độ xem dạng text).

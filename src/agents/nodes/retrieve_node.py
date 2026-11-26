@@ -1,16 +1,31 @@
 from src.agents.state import AgentState
 from src.config import get_settings
 from src.db.session import AsyncSessionLocal
+from src.repositories import user_repo
 from src.repositories.document_repo import (
     get_chunks_by_ids,
     get_neighbor_chunks,
     list_documents_by_ids,
 )
+from src.services.document_access import list_viewable_documents
 from src.services.retrieval import hybrid_rerank
 from src.services.vector_store import build_access_filter, search_similar
 
 # Số ký tự tối đa lấy thêm từ mỗi đoạn LIỀN KỀ (trước/sau) để ngữ cảnh liền mạch.
 _NEIGHBOR_CHARS = 350
+
+
+async def _get_accessible_document_ids(state: AgentState) -> list[str] | None:
+    user_id = state.get("user_id")
+    if not user_id:
+        return None
+
+    async with AsyncSessionLocal() as session:
+        user = await user_repo.get_by_id(session, user_id)
+        if user is None:
+            return []
+        documents = await list_viewable_documents(session, user)
+        return [str(document.id) for document in documents]
 
 
 async def retrieve_context_node(state: AgentState) -> dict:
@@ -29,8 +44,18 @@ async def retrieve_context_node(state: AgentState) -> dict:
     # Truy hồi rộng hơn top_k để bước rerank chọn lại; áp ngưỡng điểm ngay tại
     # Qdrant để loại các chunk kém liên quan (chống bịa).
     candidate_limit = top_k * settings.rag_candidate_multiplier
-    # Lọc theo quyền: student chỉ tài liệu nhà trường; lecturer thêm tài liệu của mình.
-    access_filter = build_access_filter(state.get("user_role"), state.get("user_id"))
+    # Dùng cùng danh sách tài liệu với thư viện để nguồn chatbot luôn mở được cho user.
+    try:
+        accessible_ids = await _get_accessible_document_ids(state)
+    except Exception as exc:
+        return {"error": f"Document access check error: {exc}"}
+    if accessible_ids is not None and not accessible_ids:
+        return {"retrieved_chunks": [], "context": "", "sources": [], "doc_info": {}}
+    access_filter = build_access_filter(
+        state.get("user_role"),
+        state.get("user_id"),
+        document_ids=accessible_ids,
+    )
 
     db_chunks = []
     score_by_chunk_id = {}

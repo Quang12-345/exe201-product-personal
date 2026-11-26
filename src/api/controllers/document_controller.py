@@ -26,6 +26,7 @@ from src.models.dataset import (
 from src.repositories import classroom_repo, document_repo, user_repo
 from src.services import object_storage
 from src.services.data_pipeline import SUPPORTED_DOCUMENT_EXTENSIONS
+from src.services.document_access import list_viewable_documents
 from src.services.ingestion import ingest_document_file
 from src.services.task_queue import enqueue_ingest
 from src.services.vector_store import delete_points_for_document
@@ -619,41 +620,9 @@ async def list_available_documents_controller(
         from src.api.controllers.classroom_controller import list_classroom_documents_controller
         return await list_classroom_documents_controller(session, user, classroom_id)
 
-    role = _role_name(user)
-    documents = await document_repo.list_documents(session)
+    visible_documents = await list_viewable_documents(session, user)
     owners = {u.id: u.full_name for u in await user_repo.list_all(session)}
 
-    enrolled_classroom_ids: set[str] = set()
-    if role == "student" and session is not None:
-        try:
-            enrolled_classrooms = await classroom_repo.list_student_enrolled_classrooms(session, user)
-            enrolled_classroom_ids = {str(c.id) for c in enrolled_classrooms}
-        except Exception:
-            enrolled_classroom_ids = set()
-
-    def visible(doc) -> bool:
-        meta = doc.metadata_json or {}
-        doc_classroom = getattr(doc, "classroom_id", None) or meta.get("classroom_id")
-        scope = meta.get("scope", "school")
-        if role == "admin":
-            return True
-        if role == "lecturer":
-            # Giảng viên thấy tất cả tài liệu do mình tải lên (kể cả thuộc lớp của mình) + tài liệu chung trường
-            if doc.uploaded_by == user.id:
-                return True
-            if doc_classroom or scope == "classroom":
-                return False
-            return scope == "school"
-        # Sinh viên: thấy tài liệu do mình tải lên (nếu có), tài liệu của các lớp học đã tham gia, hoặc tài liệu chung trường (không thuộc lớp khác)
-        if doc.uploaded_by == user.id and doc.status == "ready":
-            return True
-        if doc_classroom:
-            return str(doc_classroom) in enrolled_classroom_ids and doc.status == "ready"
-        if scope == "classroom":
-            return False
-        return scope == "school" and doc.status == "ready"
-
-    visible_documents = [d for d in documents if visible(d)]
     viewed_ids = await document_repo.list_viewed_document_ids(session, user.id)
     return [
         _to_response(d, owner_name=owners.get(d.uploaded_by), is_new=d.id not in viewed_ids)

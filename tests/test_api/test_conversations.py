@@ -63,11 +63,56 @@ async def test_admin_can_read_any_conversation(monkeypatch):
             ),
         ]
 
+    async def visible_documents(session, user):
+        return [SimpleNamespace(id="d")]
+
+    async def ratings_by_user(session, **kwargs):
+        return {}
+
     monkeypatch.setattr(cc.conversation_repo, "get_conversation", fake_get)
     monkeypatch.setattr(cc.conversation_repo, "list_messages", fake_list_messages)
+    monkeypatch.setattr(cc, "list_viewable_documents", visible_documents)
+    monkeypatch.setattr("src.repositories.feedback_repo.ratings_by_user", ratings_by_user)
     items = await cc.get_messages_controller(None, _user("admin", "a1"), "c1")
     assert len(items) == 2
     assert items[1].sources[0].cite == 1
+
+
+@pytest.mark.asyncio
+async def test_history_hides_sources_the_user_cannot_open(monkeypatch):
+    async def fake_get(session, cid):
+        return SimpleNamespace(id=cid, user_id="s1")
+
+    async def fake_list_messages(session, cid):
+        return [
+            SimpleNamespace(
+                id="m1",
+                role="assistant",
+                content="Ý đúng [1], ý sai [2].",
+                metadata_json={
+                    "sources": [
+                        {"document_id": "visible", "title": "A", "chunk_id": "a", "score": 0.9, "cite": 1},
+                        {"document_id": "hidden", "title": "B", "chunk_id": "b", "score": 0.8, "cite": 2},
+                    ]
+                },
+                created_at=datetime.now(),
+            )
+        ]
+
+    async def visible_documents(session, user):
+        return [SimpleNamespace(id="visible")]
+
+    async def ratings_by_user(session, **kwargs):
+        return {}
+
+    monkeypatch.setattr(cc.conversation_repo, "get_conversation", fake_get)
+    monkeypatch.setattr(cc.conversation_repo, "list_messages", fake_list_messages)
+    monkeypatch.setattr(cc, "list_viewable_documents", visible_documents)
+    monkeypatch.setattr("src.repositories.feedback_repo.ratings_by_user", ratings_by_user)
+    items = await cc.get_messages_controller(None, _user("student", "s1"), "c1")
+
+    assert [source.document_id for source in items[0].sources] == ["visible"]
+    assert items[0].content == "Ý đúng [1], ý sai."
 
 
 # ----- Stats role-aware -----

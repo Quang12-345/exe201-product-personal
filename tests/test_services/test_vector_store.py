@@ -151,10 +151,16 @@ async def test_upsert_chunks_batches_points(monkeypatch):
     assert len(upsert_calls[2]) == 20
 
 
-def test_build_access_filter_shared_corpus_for_all_roles():
-    """Chatbot là kho dùng chung: mọi vai trò retrieval trên cùng tập tài liệu →
-    không lọc theo vai trò (None). Đảm bảo student và lecturer hỏi được như nhau."""
+def test_build_access_filter_limits_sources_to_viewable_documents():
     assert vector_store.build_access_filter("admin", "u1") is None
     assert vector_store.build_access_filter("lecturer", "u1") is None
     assert vector_store.build_access_filter("student", "u1") is None
     assert vector_store.build_access_filter(None, None) is None
+
+    access_filter = vector_store.build_access_filter(
+        "student",
+        "u1",
+        document_ids=["doc-1", "doc-2"],
+    )
+    assert access_filter.must[0].key == "document_id"
+    assert access_filter.must[0].match.any == ["doc-1", "doc-2"]

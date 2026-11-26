@@ -63,21 +63,28 @@ async def _ensure_payload_indexes(client, collection_name: str) -> None:
                 raise
 
 
-def build_access_filter(role: str | None, user_id: str | None):
-    """Filter Qdrant cho RETRIEVAL của chatbot.
+def build_access_filter(
+    role: str | None,
+    user_id: str | None,
+    *,
+    document_ids: list[str] | None = None,
+):
+    """Limit Qdrant retrieval to documents the caller is allowed to open."""
+    if document_ids is None:
+        return None
+    if not document_ids:
+        raise ValueError("document_ids must not be empty")
 
-    Chủ đích: chatbot là KHO TRI THỨC DÙNG CHUNG — mọi vai trò (admin/lecturer/
-    student) đều hỏi-đáp trên CÙNG MỘT tập tài liệu để trải nghiệm đồng nhất. Vì
-    vậy KHÔNG lọc theo vai trò ở tầng truy hồi (trả về None = xem tất cả).
+    from qdrant_client import models
 
-    Lưu ý: phân quyền HIỂN THỊ vẫn được giữ riêng ở tầng THƯ VIỆN
-    (list_available_documents_controller): student không thấy quy định trong thư
-    viện, lecturer thấy tài liệu của mình... — đó là việc liệt kê tài liệu, tách
-    bạch với việc chatbot được phép tham chiếu nội dung để trả lời.
-
-    `role`/`user_id` giữ trong chữ ký để có thể siết lại sau này nếu cần.
-    """
-    return None
+    return models.Filter(
+        must=[
+            models.FieldCondition(
+                key="document_id",
+                match=models.MatchAny(any=document_ids),
+            )
+        ]
+    )
 
 
 async def recreate_collection() -> None:

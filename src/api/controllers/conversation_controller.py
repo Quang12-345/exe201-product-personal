@@ -14,6 +14,8 @@ from src.models.conversation import (
     MessageItem,
 )
 from src.repositories import conversation_repo
+from src.services.citations import strip_unsupported_citations
+from src.services.document_access import list_viewable_documents
 
 
 def _role_name(user: User) -> str | None:
@@ -70,17 +72,32 @@ async def get_messages_controller(
         )
     except Exception:  # noqa: BLE001
         my_ratings = {}
+    visible_document_ids = {
+        str(document.id)
+        for document in await list_viewable_documents(session, user)
+    }
     items: list[MessageItem] = []
     for m in messages:
         meta = m.metadata_json or {}
         raw_sources = meta.get("sources", []) if m.role == "assistant" else []
-        sources = [Source(**s) for s in raw_sources if isinstance(s, dict)]
+        sources = []
+        visible_citations = set()
+        for index, source in enumerate(raw_sources, start=1):
+            if not isinstance(source, dict) or str(source.get("document_id")) not in visible_document_ids:
+                continue
+            citation_number = source.get("cite") or index
+            visible_citations.add(int(citation_number))
+            sources.append(Source(**{**source, "cite": citation_number}))
         confidence = meta.get("confidence") if m.role == "assistant" else None
         items.append(
             MessageItem(
                 id=m.id,
                 role=m.role,
-                content=m.content,
+                content=(
+                    strip_unsupported_citations(m.content, visible_citations)
+                    if m.role == "assistant"
+                    else m.content
+                ),
                 sources=sources,
                 confidence=confidence if isinstance(confidence, dict) else None,
                 my_rating=my_ratings.get(m.id),
