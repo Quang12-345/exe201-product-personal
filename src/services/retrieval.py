@@ -12,6 +12,15 @@ import unicodedata
 RRF_K = 60  # hằng số chuẩn của Reciprocal Rank Fusion
 
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
+_QUERY_STOPWORDS = {"la", "gi", "the", "nao", "mot", "cua", "ve", "cho", "co"}
+_DEFINITION_INTENT_RE = re.compile(
+    r"\bla\s+gi\b|\bkhai\s+niem\b|\bdinh\s+nghia\b|what\s+is|define\b"
+)
+_DEFINITION_EXCERPT_RE = re.compile(
+    r"\b(khai\s+niem|dinh\s+nghia)\s*:|"
+    r"\bduoc\s+hieu\s+la\b|\bla\s+(mot|kieu|hinh\s+thuc|qua\s+trinh|"
+    r"phuong\s+thuc|loai|cach\s+thuc)\b"
+)
 
 
 def _fold_diacritics(text: str) -> str:
@@ -25,6 +34,83 @@ def _fold_diacritics(text: str) -> str:
 
 def tokenize(text: str) -> list[str]:
     return _TOKEN_RE.findall(_fold_diacritics((text or "").lower()))
+
+
+def select_relevant_excerpt(content: str, query: str, max_chars: int = 500) -> str:
+    """Choose a query-relevant paragraph for a citation instead of the chunk prefix."""
+    if not content:
+        return ""
+
+    terms = {term for term in tokenize(query) if term not in _QUERY_STOPWORDS}
+    if not terms:
+        return content[:max_chars]
+
+    definition_intent = bool(_DEFINITION_INTENT_RE.search(" ".join(tokenize(query))))
+    paragraphs = []
+    start = 0
+    for boundary in re.finditer(r"(?:\r?\n[ \t]*){2,}", content):
+        paragraph_start = start
+        paragraph_end = boundary.start()
+        while paragraph_start < paragraph_end and content[paragraph_start].isspace():
+            paragraph_start += 1
+        while paragraph_end > paragraph_start and content[paragraph_end - 1].isspace():
+            paragraph_end -= 1
+        if paragraph_start < paragraph_end:
+            paragraphs.append((paragraph_start, paragraph_end))
+        start = boundary.end()
+
+    paragraph_start = start
+    paragraph_end = len(content)
+    while paragraph_start < paragraph_end and content[paragraph_start].isspace():
+        paragraph_start += 1
+    while paragraph_end > paragraph_start and content[paragraph_end - 1].isspace():
+        paragraph_end -= 1
+    if paragraph_start < paragraph_end:
+        paragraphs.append((paragraph_start, paragraph_end))
+
+    if len(paragraphs) == 1 and len(content) > max_chars:
+        paragraphs = []
+        cursor = 0
+        for boundary in re.finditer(r"(?<=[.!?])\s+", content):
+            paragraph_start = cursor
+            paragraph_end = boundary.start()
+            while paragraph_start < paragraph_end and content[paragraph_start].isspace():
+                paragraph_start += 1
+            while paragraph_end > paragraph_start and content[paragraph_end - 1].isspace():
+                paragraph_end -= 1
+            if paragraph_start < paragraph_end:
+                paragraphs.append((paragraph_start, paragraph_end))
+            cursor = boundary.end()
+        if cursor < len(content):
+            paragraphs.append((cursor, len(content)))
+
+    best_span = None
+    best_score = float("-inf")
+    for paragraph_start, paragraph_end in paragraphs:
+        paragraph = content[paragraph_start:paragraph_end]
+        normalized = " ".join(tokenize(paragraph))
+        folded_paragraph = _fold_diacritics(paragraph.lower())
+        paragraph_terms = set(normalized.split())
+        overlap = len(terms & paragraph_terms)
+        if overlap == 0:
+            continue
+
+        score = overlap / len(terms)
+        if definition_intent:
+            if _DEFINITION_EXCERPT_RE.search(folded_paragraph):
+                score += 2
+        if score > best_score:
+            best_score = score
+            best_span = (paragraph_start, paragraph_end)
+
+    if best_span is None:
+        return content[:max_chars]
+
+    excerpt = content[best_span[0] : best_span[1]]
+    if len(excerpt) <= max_chars:
+        return excerpt
+
+    return excerpt[:max_chars]
 
 
 def _rank_map(ordered_ids: list[str]) -> dict[str, int]:

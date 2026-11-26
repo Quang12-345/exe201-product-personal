@@ -1,4 +1,4 @@
-from src.services.retrieval import hybrid_rerank, tokenize
+from src.services.retrieval import hybrid_rerank, select_relevant_excerpt, tokenize
 
 
 def test_tokenize_lowercases_and_splits_unicode():
@@ -32,3 +32,23 @@ def test_hybrid_rerank_handles_empty_query():
     reranked = hybrid_rerank("", candidates)
     # Không có token query → giữ thứ tự dense (a trước b).
     assert [c["chunk_id"] for c in reranked] == ["a", "b"]
+
+
+def test_select_relevant_excerpt_chooses_definition_for_what_is_question():
+    content = (
+        "Nhóm 2:\n\n"
+        "Chủ đề: SẢN XUẤT HÀNG HÓA, HÀNG HÓA VÀ CÁC THUỘC TÍNH CỦA HÀNG HÓA\n\n"
+        "Câu hỏi: Điều gì làm nên giá trị của một món hàng?\n\n"
+        "Lời đáp gọn gàng: Giá trị của một món hàng được quyết định bởi thời gian lao động xã hội cần thiết.\n\n"
+        "NỘI DUNG CHI TIẾT\n\n"
+        "Phần 1: Khái niệm và hai điều kiện ra đời của sản xuất hàng hóa\n\n"
+        "Khái niệm: Sản xuất hàng hóa là kiểu tổ chức hoạt động kinh tế mà ở đó "
+        "những người sản xuất ra sản phẩm không phải để phục vụ tiêu dùng cho chính họ, "
+        "mà là nhằm mục đích trao đổi, mua bán trên thị trường."
+    )
+
+    excerpt = select_relevant_excerpt(content, "sản xuất hàng hóa là gì")
+
+    assert excerpt.startswith("Khái niệm: Sản xuất hàng hóa là kiểu")
+    assert "Nhóm 2" not in excerpt
+    assert "trao đổi, mua bán trên thị trường" in excerpt

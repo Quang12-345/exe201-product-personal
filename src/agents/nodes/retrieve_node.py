@@ -8,7 +8,7 @@ from src.repositories.document_repo import (
     list_documents_by_ids,
 )
 from src.services.document_access import list_viewable_documents
-from src.services.retrieval import hybrid_rerank
+from src.services.retrieval import hybrid_rerank, select_relevant_excerpt
 from src.services.vector_store import build_access_filter, search_similar
 
 # Số ký tự tối đa lấy thêm từ mỗi đoạn LIỀN KỀ (trước/sau) để ngữ cảnh liền mạch.
@@ -149,7 +149,7 @@ async def retrieve_context_node(state: AgentState) -> dict:
         payload = payload_by_chunk_id.get(chunk.id, {})
         title = str(payload.get("title") or "Unknown document")
         score = cand["dense_score"]
-        quote = chunk.content[:500]
+        quote = select_relevant_excerpt(chunk.content, state.get("query", ""))
 
         md = chunk.metadata_json if isinstance(chunk.metadata_json, dict) else {}
         section_title = md.get("section_title")
