@@ -125,7 +125,27 @@ def test_sources_that_do_not_support_any_question_part_are_not_grounded():
     )
 
     assert result["grounded"] is False
-    assert result["confidence"] == 0.0
+    assert result["confidence"] == 0.1
+    assert result["factors"]["assessment_method"] == "no_answer"
+
+
+def test_missing_information_answer_cannot_receive_full_confidence():
+    result = assess_answer(
+        'Tài liệu "MLN122" không đề cập đến việc ăn gì hay các vấn đề liên quan '
+        "đến thực phẩm.",
+        _sources(0.69, 0.65, 0.61),
+        coverage_review={
+            "coverage": 1.0,
+            "all_claims_supported": True,
+            "covered_requirements": 1,
+            "total_requirements": 1,
+            "unsupported_claims": [],
+        },
+    )
+
+    assert result["grounded"] is False
+    assert result["confidence"] <= 0.2
+    assert result["factors"]["assessment_method"] == "no_answer"
 
 
 def test_coverage_evaluator_counts_only_answered_supported_requirements(monkeypatch):
@@ -136,6 +156,7 @@ def test_coverage_evaluator_counts_only_answered_supported_requirements(monkeypa
 
         async def ainvoke(self, messages):
             assert len(messages) == 2
+            assert all(len(message) == 2 for message in messages)
             return confidence.CoverageReview(
                 requirements=[
                     confidence.RequirementReview(

@@ -16,6 +16,20 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 _CITATION_RE = re.compile(r"\[\d+\]")
+_NO_ANSWER_MARKERS = (
+    "không đề cập",
+    "chưa đề cập",
+    "không nhắc đến",
+    "chưa nhắc đến",
+    "không có thông tin",
+    "chưa có thông tin",
+    "không tìm thấy thông tin",
+    "không đủ dữ liệu",
+    "does not mention",
+    "doesn't mention",
+    "not mentioned",
+    "no relevant information",
+)
 
 
 class RequirementReview(BaseModel):
@@ -44,6 +58,11 @@ def _calibrate(score: float, *, floor: float, ceil: float) -> float:
     return _clamp((score - floor) / (ceil - floor))
 
 
+def _is_no_answer(answer: str) -> bool:
+    normalized = " ".join((answer or "").lower().split())
+    return any(marker in normalized for marker in _NO_ANSWER_MARKERS)
+
+
 def assess_answer(
     answer: str,
     sources: list[dict] | None,
@@ -56,6 +75,7 @@ def assess_answer(
     """Trả về {grounded, confidence(0..1), level, factors} cho 1 câu trả lời."""
     answer = answer or ""
     sources = sources or []
+    no_answer = _is_no_answer(answer)
     scores = sorted(
         (float(s.get("score") or 0.0) for s in sources if s.get("score") is not None),
         reverse=True,
@@ -68,7 +88,10 @@ def assess_answer(
     # đòi thêm [n] inline, kẻo mâu thuẫn "hiển thị nguồn nhưng badge nói không nguồn".
     grounded = n_sources > 0
     if coverage_review is not None:
-        grounded = grounded and float(coverage_review.get("coverage", 0.0)) > 0
+        review_coverage = _clamp(float(coverage_review.get("coverage", 0.0)))
+        grounded = grounded and review_coverage > 0
+        if no_answer and review_coverage >= 1.0:
+            grounded = False
 
     # Dải hiệu chuẩn: floor = ngưỡng dự phòng (nhiễu), ceil = trên ngưỡng chính 1 khoảng.
     floor = rag_fallback_min_score
@@ -88,10 +111,10 @@ def assess_answer(
     if not grounded:
         confidence = (
             0.1
-            if n_sources == 0
+            if n_sources == 0 or no_answer
             else _clamp(float(coverage_review.get("coverage", 0.0)))
         )
-        assessment_method = "no_evidence"
+        assessment_method = "no_answer" if no_answer else "no_evidence"
     elif coverage_review is not None:
         coverage = _clamp(float(coverage_review.get("coverage", 0.0)))
         all_claims_supported = bool(coverage_review.get("all_claims_supported"))
@@ -194,7 +217,9 @@ async def evaluate_answer_coverage(
             "ý đó được tài liệu hỗ trợ. Liệt kê riêng mọi khẳng định thực tế trong câu "
             "trả lời không được tài liệu hỗ trợ. Nếu tài liệu không đủ để xác định, "
             "đánh dấu không được đáp ứng/không được hỗ trợ. Không tự suy diễn rằng "
-            "một bản tóm tắt bao quát toàn bộ tài liệu nếu ngữ cảnh chỉ có trích đoạn.",
+            "một bản tóm tắt bao quát toàn bộ tài liệu nếu ngữ cảnh chỉ có trích đoạn. "
+            "Nếu câu trả lời chỉ nói tài liệu không đề cập hoặc không có thông tin "
+            "để trả lời ý được hỏi, ý đó KHÔNG được tính là đã trả lời.",
         ),
         (
             "human",

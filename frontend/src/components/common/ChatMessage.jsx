@@ -95,6 +95,8 @@ function ChatMessage({ msg, onSave, saved = false }) {
     ? `Đánh giá theo mức độ bao phủ câu hỏi:\n• Ý được hỗ trợ: ${f.covered_requirements}/${f.total_requirements}\n• Khẳng định chưa được tài liệu hỗ trợ: ${f.unsupported_claims}\n• Tất cả ý đều được trả lời và có căn cứ: ${f.coverage === 1 && f.unsupported_claims === 0 ? 'có' : 'không'}`
     : f?.assessment_method === 'coverage_unavailable'
       ? 'Không đánh giá được độ bao phủ câu hỏi; điểm được đặt thấp để tránh khẳng định quá mức.'
+      : f?.assessment_method === 'no_answer'
+        ? 'Câu trả lời cho biết tài liệu không có thông tin để đáp ứng câu hỏi.'
       : f?.assessment_method === 'no_evidence'
         ? 'Không tìm thấy nguồn tài liệu hỗ trợ câu trả lời.'
         : f
@@ -157,7 +159,10 @@ function ChatMessage({ msg, onSave, saved = false }) {
             (đủ dài). Chào hỏi/xã giao/câu ngắn → không cảnh báo, không nguồn (tự nhiên). */}
         {hasText && !grounded && !isGreetingMessage && body.trim().length > 180 && (
           <div className="chat-trust chat-trust--warn" title={confTitle}>
-            <AlertCircleIcon size={14} /> Câu trả lời không có nguồn trong tài liệu — hãy kiểm chứng thông tin.
+            <AlertCircleIcon size={14} />
+            {f?.assessment_method === 'no_answer'
+              ? 'Tài liệu không cung cấp thông tin để trả lời yêu cầu này.'
+              : 'Câu trả lời không có nguồn trong tài liệu — hãy kiểm chứng thông tin.'}
             {' '}Độ tin cậy {confLabel} ({confPct}%).
           </div>
         )}
