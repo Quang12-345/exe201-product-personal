@@ -80,8 +80,8 @@ function ChatMessage({ msg, onSave, saved = false }) {
   }
 
   const body = msg.text ?? (msg.paragraphs || []).join('\n\n')
-  // SYSTEM feedback: câu trả lời có dựa trên tài liệu không + độ tin cậy (điểm truy hồi).
-  // Độ tin cậy: ƯU TIÊN giá trị backend (đa tín hiệu, đã hiệu chuẩn); cũ thì tính tạm.
+  // SYSTEM feedback: mức độ được các nguồn truy hồi hỗ trợ.
+  // Ưu tiên đánh giá độ bao phủ từ backend; tin nhắn cũ dùng điểm truy hồi làm dự phòng.
   const hasText = (body || '').trim().length > 0
   const isGreetingMessage = String(msg.id || '').startsWith('g')
   const cf = msg.confidence
@@ -91,7 +91,13 @@ function ChatMessage({ msg, onSave, saved = false }) {
   const confClass = confLabel === 'cao' ? 'high' : confLabel === 'trung bình' ? 'med' : 'low'
   const confPct = Math.round(confVal * 100)
   const f = cf?.factors
-  const confTitle = f
+  const confTitle = f?.assessment_method === 'coverage'
+    ? `Đánh giá theo mức độ bao phủ câu hỏi:\n• Ý được hỗ trợ: ${f.covered_requirements}/${f.total_requirements}\n• Khẳng định chưa được tài liệu hỗ trợ: ${f.unsupported_claims}\n• Tất cả ý đều được trả lời và có căn cứ: ${f.coverage === 1 && f.unsupported_claims === 0 ? 'có' : 'không'}`
+    : f?.assessment_method === 'coverage_unavailable'
+      ? 'Không đánh giá được độ bao phủ câu hỏi; điểm được đặt thấp để tránh khẳng định quá mức.'
+      : f?.assessment_method === 'no_evidence'
+        ? 'Không tìm thấy nguồn tài liệu hỗ trợ câu trả lời.'
+        : f
     ? `Cách tính độ tin cậy:\n• Liên quan nguồn tốt nhất: ${Math.round(f.top_relevance * 100)}%\n• Liên quan TB (top 3): ${Math.round(f.avg_relevance * 100)}%\n• Số nguồn hỗ trợ: ${f.n_sources}\n• Câu trả lời có trích dẫn [n]: ${f.cited ? 'có' : 'không'}`
     : 'Độ tin cậy dựa trên mức liên quan của nguồn truy hồi.'
   return (
@@ -150,8 +156,9 @@ function ChatMessage({ msg, onSave, saved = false }) {
         {/* SYSTEM feedback: cảnh báo ngoài tài liệu — CHỈ với câu trả lời dạng kiến thức
             (đủ dài). Chào hỏi/xã giao/câu ngắn → không cảnh báo, không nguồn (tự nhiên). */}
         {hasText && !grounded && !isGreetingMessage && body.trim().length > 180 && (
-          <div className="chat-trust chat-trust--warn">
+          <div className="chat-trust chat-trust--warn" title={confTitle}>
             <AlertCircleIcon size={14} /> Câu trả lời không có nguồn trong tài liệu — hãy kiểm chứng thông tin.
+            {' '}Độ tin cậy {confLabel} ({confPct}%).
           </div>
         )}
         {hasText && grounded && (

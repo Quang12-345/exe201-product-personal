@@ -48,13 +48,19 @@ async def chat_controller(
             "Xin lỗi, hiện chưa tạo được câu trả lời. Vui lòng thử lại."
         )
         from src.config import get_settings
-        from src.services.confidence import assess_answer
+        from src.services.confidence import assess_answer_with_coverage
 
         sources = result.get("sources", [])
         settings = get_settings()
-        assessment = assess_answer(
+        assessment_sources = [
+            source if isinstance(source, dict) else source.model_dump()
+            for source in sources
+        ]
+        assessment = await assess_answer_with_coverage(
+            request.message,
             response_text,
-            [s if isinstance(s, dict) else s.model_dump() for s in sources],
+            assessment_sources,
+            result.get("retrieved_chunks", []),
             rag_min_score=settings.rag_min_score,
             rag_fallback_min_score=settings.rag_fallback_min_score,
         )
@@ -69,7 +75,8 @@ async def chat_controller(
                     count_text_tokens(getattr(s, "quote", "") or "") for s in sources
                 )
                 completion_tokens = count_text_tokens(response_text)
-                total_tokens = prompt_tokens + completion_tokens
+                evaluation_tokens = assessment["factors"].get("evaluation_tokens", 0)
+                total_tokens = prompt_tokens + completion_tokens + evaluation_tokens
                 if total_tokens > 0:
                     await record_token_usage(
                         session,
@@ -87,6 +94,7 @@ async def chat_controller(
             grounded=assessment["grounded"],
             confidence=assessment["confidence"],
             confidence_level=assessment["level"],
+            confidence_factors=assessment["factors"],
         )
     except Exception:
         return ChatResponse(

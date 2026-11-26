@@ -43,7 +43,12 @@ async function fallbackChat(text, { conversationId, topK, token, onToken, onDone
       sources: data?.sources || [],
       messageId: data?.message_id || null,
       confidence: data?.confidence != null
-        ? { grounded: !!data.grounded, value: data.confidence, level: data.confidence_level || 'thấp', factors: null }
+        ? {
+            grounded: !!data.grounded,
+            value: data.confidence,
+            level: data.confidence_level || 'thấp',
+            factors: data.confidence_factors || null,
+          }
         : null,
     })
   } catch {

@@ -166,12 +166,14 @@ async def _run_stream(state: dict) -> AsyncIterator[str]:
     state["sources"] = cited_sources
     # Tính độ tin cậy 1 lần (đa tín hiệu, đã hiệu chuẩn) → lưu kèm message để tải lại
     # hội thoại vẫn hiển thị đúng, và dùng chung cho sự kiện done.
-    from src.services.confidence import assess_answer
+    from src.services.confidence import assess_answer_with_coverage
 
     _settings = get_settings()
-    state["confidence"] = assess_answer(
+    state["confidence"] = await assess_answer_with_coverage(
+        state["query"],
         state["response"],
         cited_sources,
+        retrieved,
         rag_min_score=_settings.rag_min_score,
         rag_fallback_min_score=_settings.rag_fallback_min_score,
     )
@@ -187,7 +189,8 @@ async def _run_stream(state: dict) -> AsyncIterator[str]:
 
             prompt_tokens = count_messages_tokens(messages)
             completion_tokens = count_text_tokens(full)
-            total_tokens = prompt_tokens + completion_tokens
+            evaluation_tokens = state["confidence"]["factors"].get("evaluation_tokens", 0)
+            total_tokens = prompt_tokens + completion_tokens + evaluation_tokens
             if total_tokens > 0:
                 async with AsyncSessionLocal() as session:
                     await record_token_usage(

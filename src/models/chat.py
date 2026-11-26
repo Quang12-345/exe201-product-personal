@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -27,8 +29,11 @@ class ChatResponse(BaseModel):
     message_id: str | None = Field(default=None, description="ID câu trả lời AI (để gắn feedback)")
     sources: list[Source] = Field(default_factory=list, description="Nguồn trích dẫn")
     grounded: bool = Field(default=False, description="Câu trả lời có bám tài liệu (có trích dẫn) không")
-    confidence: float = Field(default=0.0, description="Độ tin cậy 0..1 (đa tín hiệu, đã hiệu chuẩn)")
+    confidence: float = Field(default=0.0, description="Mức độ bao phủ và căn cứ tài liệu từ 0..1")
     confidence_level: str = Field(default="thấp", description="cao | trung bình | thấp")
+    confidence_factors: dict[str, Any] | None = Field(
+        default=None, description="Các yếu tố cấu thành độ tin cậy"
+    )
 
 
 # ---- Feedback loop (Product AI): đánh giá câu trả lời AI ----
