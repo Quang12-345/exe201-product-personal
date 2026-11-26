@@ -80,6 +80,7 @@ export function useChatConversations({ greeting, openLatestOnMount = true }) {
     await sendChatStream(trimmed, {
       conversationId: convArg,
       onToken: (tok) => patchMessage(aiId, (m) => ({ ...m, text: m.text + tok })),
+      onReplace: (text) => patchMessage(aiId, (m) => ({ ...m, text })),
       onError: (msg) => patchMessage(aiId, (m) => ({ ...m, text: msg, canSave: false })),
       onDone: async ({ conversationId, sources, messageId, confidence }) => {
         if (sources?.length || messageId || confidence) {

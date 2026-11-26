@@ -20,6 +20,12 @@ class FakeAgent:
                     "score": 0.9,
                 }
             ],
+            "confidence": {
+                "grounded": True,
+                "confidence": 0.9,
+                "level": "cao",
+                "factors": {},
+            },
         }
 
 

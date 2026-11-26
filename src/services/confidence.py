@@ -36,11 +36,31 @@ class RequirementReview(BaseModel):
     requirement: str = Field(description="Một ý riêng biệt mà câu hỏi yêu cầu")
     answered: bool = Field(description="Câu trả lời đã đáp ứng đầy đủ ý này chưa")
     supported: bool = Field(description="Ý trả lời có được nội dung nguồn hỗ trợ không")
+    supporting_source_indexes: list[int] = Field(
+        default_factory=list,
+        description="Số nguồn 1-based trực tiếp hỗ trợ ý này"
+    )
+
+
+class ClaimReview(BaseModel):
+    claim: str = Field(description="Một khẳng định thực tế trong câu trả lời")
+    supporting_source_indexes: list[int] = Field(
+        default_factory=list,
+        description="Số nguồn 1-based trực tiếp chứng minh khẳng định"
+    )
+    cited_source_indexes: list[int] = Field(
+        default_factory=list,
+        description="Số nguồn được gắn trích dẫn ngay cho khẳng định này"
+    )
 
 
 class CoverageReview(BaseModel):
     requirements: list[RequirementReview] = Field(
         description="Các ý cần trả lời, tách từ câu hỏi thành những yêu cầu riêng"
+    )
+    claims: list[ClaimReview] = Field(
+        default_factory=list,
+        description="Mọi khẳng định thực tế trong câu trả lời và nguồn chứng minh"
     )
     unsupported_claims: list[str] = Field(
         description="Các khẳng định thực tế trong câu trả lời không được nguồn hỗ trợ"
@@ -189,11 +209,12 @@ async def evaluate_answer_coverage(
 
     evidence = [
         {
+            "source_index": index,
             "title": str(chunk.get("title") or "Unknown document"),
             "page": chunk.get("page_number"),
             "content": str(chunk.get("content") or ""),
         }
-        for chunk in context_chunks
+        for index, chunk in enumerate(context_chunks, start=1)
         if str(chunk.get("content") or "").strip()
     ]
     if not evidence:
@@ -203,6 +224,9 @@ async def evaluate_answer_coverage(
             "covered_requirements": 0,
             "total_requirements": 0,
             "unsupported_claims": [],
+            "supported_source_indexes": [],
+            "supported_citation_indexes": [],
+            "unsupported_citation_indexes": [],
         }
 
     messages = [
@@ -219,7 +243,13 @@ async def evaluate_answer_coverage(
             "đánh dấu không được đáp ứng/không được hỗ trợ. Không tự suy diễn rằng "
             "một bản tóm tắt bao quát toàn bộ tài liệu nếu ngữ cảnh chỉ có trích đoạn. "
             "Nếu câu trả lời chỉ nói tài liệu không đề cập hoặc không có thông tin "
-            "để trả lời ý được hỏi, ý đó KHÔNG được tính là đã trả lời.",
+            "để trả lời ý được hỏi, ý đó KHÔNG được tính là đã trả lời. Với mỗi ý "
+            "được hỗ trợ và mỗi khẳng định thực tế, chỉ liệt kê đúng giá trị "
+            "source_index của nguồn (đánh số 1-based theo thứ tự ban đầu), trực "
+            "tiếp chứng minh nội dung đó. Không liệt kê nguồn chỉ vì chúng cùng tài "
+            "liệu hoặc cùng chủ đề. Với mỗi khẳng định, ghi riêng số nguồn mà câu trả "
+            "lời đã gắn [n]; nếu nguồn được gắn không chứng minh đúng khẳng định đó, "
+            "không đưa nó vào supporting_source_indexes.",
         ),
         (
             "human",
@@ -242,17 +272,39 @@ async def evaluate_answer_coverage(
     if not isinstance(review, CoverageReview):
         review = CoverageReview.model_validate(review)
 
+    valid_source_indexes = {item["source_index"] for item in evidence}
     requirements = review.requirements
     covered_count = sum(
-        requirement.answered and requirement.supported
+        requirement.answered
+        and requirement.supported
+        and bool(set(requirement.supporting_source_indexes) & valid_source_indexes)
         for requirement in requirements
     )
     total_count = len(requirements)
     coverage = covered_count / total_count if total_count else 0.0
+    supported_source_indexes = {
+        index
+        for requirement in requirements
+        if requirement.answered and requirement.supported
+        for index in requirement.supporting_source_indexes
+        if index in valid_source_indexes
+    }
+    supported_citation_indexes = set()
+    unsupported_citation_indexes = set()
+    for claim in review.claims:
+        supporting = set(claim.supporting_source_indexes) & valid_source_indexes
+        supported_source_indexes.update(supporting)
+        cited = set(claim.cited_source_indexes) & valid_source_indexes
+        supported_citation_indexes.update(cited & supporting)
+        unsupported_citation_indexes.update(cited - supporting)
     all_claims_supported = (
         total_count > 0
         and covered_count == total_count
         and not review.unsupported_claims
+        and all(
+            set(claim.supporting_source_indexes) & valid_source_indexes
+            for claim in review.claims
+        )
     )
     evaluation_tokens = sum(count_text_tokens(content) for _, content in messages)
     evaluation_tokens += count_text_tokens(
@@ -265,6 +317,9 @@ async def evaluate_answer_coverage(
         "total_requirements": total_count,
         "unsupported_claims": review.unsupported_claims,
         "evaluation_tokens": evaluation_tokens,
+        "supported_source_indexes": sorted(supported_source_indexes),
+        "supported_citation_indexes": sorted(supported_citation_indexes),
+        "unsupported_citation_indexes": sorted(unsupported_citation_indexes),
     }
 
 
@@ -276,15 +331,19 @@ async def assess_answer_with_coverage(
     *,
     rag_min_score: float = 0.35,
     rag_fallback_min_score: float = 0.22,
-) -> dict:
-    """Score answer coverage; use a conservative visible fallback if evaluation fails."""
+) -> tuple[str, list[dict], dict]:
+    """Validate answer citations against evidence and score its supported coverage."""
+    from src.services.citations import select_cited_sources, strip_unsupported_citations
+
     if not sources:
-        return assess_answer(
-            answer,
-            sources,
+        clean_answer = strip_unsupported_citations(answer, set())
+        assessment = assess_answer(
+            clean_answer,
+            [],
             rag_min_score=rag_min_score,
             rag_fallback_min_score=rag_fallback_min_score,
         )
+        return clean_answer, [], assessment
 
     chunks = context_chunks or [
         {
@@ -298,18 +357,40 @@ async def assess_answer_with_coverage(
         review = await evaluate_answer_coverage(question, answer, chunks)
     except Exception:
         logger.exception("Answer coverage evaluation failed")
-        return assess_answer(
-            answer,
-            sources,
+        clean_answer = strip_unsupported_citations(answer, set())
+        assessment = assess_answer(
+            clean_answer,
+            [],
             rag_min_score=rag_min_score,
             rag_fallback_min_score=rag_fallback_min_score,
             coverage_unavailable=True,
         )
+        assessment["factors"]["assessment_method"] = "coverage_unavailable"
+        return clean_answer, [], assessment
 
-    return assess_answer(
+    supported_indexes = set(review["supported_source_indexes"])
+    supported_citations = set(review["supported_citation_indexes"])
+    unsupported_citations = set(review["unsupported_citation_indexes"])
+    clean_answer = strip_unsupported_citations(
         answer,
+        supported_citations - unsupported_citations,
+    )
+    selected_sources = select_cited_sources(
+        clean_answer,
         sources,
+        allowed_source_indexes=supported_indexes,
+    )
+    visible_source_indexes = {
+        int(source["cite"])
+        for source in selected_sources
+        if source.get("cite") is not None
+    }
+    clean_answer = strip_unsupported_citations(clean_answer, visible_source_indexes)
+    assessment = assess_answer(
+        clean_answer,
+        selected_sources,
         rag_min_score=rag_min_score,
         rag_fallback_min_score=rag_fallback_min_score,
         coverage_review=review,
     )
+    return clean_answer, selected_sources, assessment

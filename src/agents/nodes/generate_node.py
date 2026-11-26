@@ -1,5 +1,6 @@
 from src.agents.state import AgentState
-from src.services.citations import select_cited_sources
+from src.config import get_settings
+from src.services.confidence import assess_answer_with_coverage
 from src.services.llm import generate_answer
 
 
@@ -25,6 +26,13 @@ async def generate_answer_node(state: AgentState) -> dict:
         history=state.get("history"),
         doc_info=state.get("doc_info"),
     )
-    # Chỉ giữ nguồn thực sự được trích dẫn trong câu trả lời.
-    sources = select_cited_sources(response, state.get("sources", []))
-    return {"response": response, "sources": sources}
+    settings = get_settings()
+    response, sources, confidence = await assess_answer_with_coverage(
+        state["query"],
+        response,
+        state.get("sources", []),
+        state.get("retrieved_chunks", []),
+        rag_min_score=settings.rag_min_score,
+        rag_fallback_min_score=settings.rag_fallback_min_score,
+    )
+    return {"response": response, "sources": sources, "confidence": confidence}

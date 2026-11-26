@@ -40,6 +40,19 @@ def cited_indexes(response: str) -> set[int]:
     return {int(n) for n in _CITE_RE.findall(response or "")}
 
 
+def strip_unsupported_citations(response: str, supported_indexes: set[int]) -> str:
+    """Remove inline source markers that were not verified for their claim."""
+    citation_with_spacing = re.compile(r"(?P<spacing>[ \t]?)\[(?P<index>\d+)\]")
+    return citation_with_spacing.sub(
+        lambda match: (
+            f"{match.group('spacing')}[{match.group('index')}]"
+            if int(match.group("index")) in supported_indexes
+            else ""
+        ),
+        response or "",
+    )
+
+
 def _looks_like_no_data(response: str) -> bool:
     low = (response or "").lower()
     return any(marker in low for marker in _NO_DATA_MARKERS)
@@ -64,7 +77,11 @@ def is_smalltalk(query: str) -> bool:
 
 
 def select_cited_sources(
-    response: str, sources: list[dict], *, max_fallback: int = 3
+    response: str,
+    sources: list[dict],
+    *,
+    max_fallback: int = 3,
+    allowed_source_indexes: set[int] | None = None,
 ) -> list[dict]:
     """Trả về danh sách nguồn để hiển thị, kèm số trích dẫn `cite`.
 
@@ -72,7 +89,7 @@ def select_cited_sources(
        1-based trong `sources`, khớp [n] mà mô hình dùng).
     2. Nếu KHÔNG có [n] nhưng câu trả lời vẫn dựa trên tài liệu (có nguồn đủ tin cậy
        và không phải câu "không có dữ liệu"): đính kèm tối đa `max_fallback` nguồn
-       liên quan nhất (đánh số lại 1..n) — để hai bên luôn có nguồn.
+       liên quan nhất, đánh số theo thứ tự hiển thị.
     3. Còn lại (chào hỏi/từ chối/không có nguồn): trả về rỗng.
     """
     # Câu TỪ CHỐI THUẦN ("tài liệu chưa đề cập...") mà LLM vẫn lỡ chèn [n] → mâu
@@ -83,6 +100,8 @@ def select_cited_sources(
         return []
 
     cited = cited_indexes(response)
+    if allowed_source_indexes is not None:
+        cited &= allowed_source_indexes
     if cited:
         return [
             {**source, "cite": index}
@@ -90,7 +109,11 @@ def select_cited_sources(
             if index in cited
         ]
 
-    if not sources or _looks_like_no_data(response):
+    if (
+        not sources
+        or _looks_like_no_data(response)
+        or (allowed_source_indexes is not None and not allowed_source_indexes)
+    ):
         return []
 
     # Câu trả lời quá ngắn (chào hỏi, một câu xã giao) → không tự gắn nguồn.
@@ -100,8 +123,17 @@ def select_cited_sources(
     # Dự phòng: chỉ lấy nguồn ĐỦ TIN CẬY (điểm >= ngưỡng chính) để không gắn nhiễu.
     # Không có nguồn nào đủ tin cậy → không gắn (tránh trích dẫn sai).
     min_score = get_settings().rag_min_score
-    confident = [s for s in sources if float(s.get("score") or 0.0) >= min_score]
+    confident = [
+        (index, source)
+        for index, source in enumerate(sources, start=1)
+        if (allowed_source_indexes is None or index in allowed_source_indexes)
+        and float(source.get("score") or 0.0) >= min_score
+    ]
     if not confident:
         return []
-    chosen = confident[:max_fallback]
-    return [{**source, "cite": index} for index, source in enumerate(chosen, start=1)]
+    return [
+        {**source, "cite": display_index}
+        for display_index, (_, source) in enumerate(
+            confident[:max_fallback], start=1
+        )
+    ]

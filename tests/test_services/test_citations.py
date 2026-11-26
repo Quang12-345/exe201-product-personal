@@ -1,4 +1,8 @@
-from src.services.citations import cited_indexes, select_cited_sources
+from src.services.citations import (
+    cited_indexes,
+    select_cited_sources,
+    strip_unsupported_citations,
+)
 
 
 def _sources(n):
@@ -25,6 +29,31 @@ def test_select_preserves_original_citation_numbers():
     sources = _sources(4)
     result = select_cited_sources("Xem [1] và [4].", sources)
     assert [s["cite"] for s in result] == [1, 4]
+
+
+def test_unsupported_inline_citation_is_removed():
+    assert strip_unsupported_citations(
+        "Nên ăn phở [1] nhưng tài liệu chỉ nói về học tập [2].",
+        {2},
+    ) == "Nên ăn phở nhưng tài liệu chỉ nói về học tập [2]."
+
+
+def test_verified_sources_filter_citations_and_fallback():
+    sources = _sources(3)
+    cited = select_cited_sources(
+        "Trả lời [1] và [2].",
+        sources,
+        allowed_source_indexes={2},
+    )
+    assert [source["cite"] for source in cited] == [2]
+
+    fallback = select_cited_sources(
+        _LONG_ANSWER,
+        sources,
+        allowed_source_indexes={2},
+    )
+    assert fallback[0]["chunk_id"] == "c2"
+    assert [source["cite"] for source in fallback] == [1]
 
 
 def test_select_returns_empty_when_no_citation():

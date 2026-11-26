@@ -47,23 +47,28 @@ async def chat_controller(
         response_text = result.get("response", "") or (
             "Xin lỗi, hiện chưa tạo được câu trả lời. Vui lòng thử lại."
         )
-        from src.config import get_settings
-        from src.services.confidence import assess_answer_with_coverage
-
         sources = result.get("sources", [])
-        settings = get_settings()
         assessment_sources = [
             source if isinstance(source, dict) else source.model_dump()
             for source in sources
         ]
-        assessment = await assess_answer_with_coverage(
-            request.message,
-            response_text,
-            assessment_sources,
-            result.get("retrieved_chunks", []),
-            rag_min_score=settings.rag_min_score,
-            rag_fallback_min_score=settings.rag_fallback_min_score,
-        )
+        assessment = result.get("confidence")
+        if not isinstance(assessment, dict):
+            from src.config import get_settings
+            from src.services.confidence import assess_answer_with_coverage
+
+            settings = get_settings()
+            response_text, assessment_sources, assessment = (
+                await assess_answer_with_coverage(
+                    request.message,
+                    response_text,
+                    assessment_sources,
+                    result.get("retrieved_chunks", []),
+                    rag_min_score=settings.rag_min_score,
+                    rag_fallback_min_score=settings.rag_fallback_min_score,
+                )
+            )
+            sources = assessment_sources
 
         # Ghi nhận số token tiêu thụ thực tế nếu có session
         if user_id and session:

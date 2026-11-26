@@ -160,11 +160,21 @@ def test_coverage_evaluator_counts_only_answered_supported_requirements(monkeypa
             return confidence.CoverageReview(
                 requirements=[
                     confidence.RequirementReview(
-                        requirement="Ý thứ nhất", answered=True, supported=True
+                        requirement="Ý thứ nhất",
+                        answered=True,
+                        supported=True,
+                        supporting_source_indexes=[1],
                     ),
                     confidence.RequirementReview(
                         requirement="Ý thứ hai", answered=False, supported=True
                     ),
+                ],
+                claims=[
+                    confidence.ClaimReview(
+                        claim="Ý thứ nhất có căn cứ",
+                        supporting_source_indexes=[1],
+                        cited_source_indexes=[1],
+                    )
                 ],
                 unsupported_claims=[],
             )
@@ -196,3 +206,37 @@ def test_coverage_evaluator_counts_only_answered_supported_requirements(monkeypa
     assert result["all_claims_supported"] is False
     assert result["covered_requirements"] == 1
     assert result["total_requirements"] == 2
+    assert result["supported_source_indexes"] == [1]
+    assert result["supported_citation_indexes"] == [1]
+
+
+def test_unverified_citation_is_removed_and_source_hidden(monkeypatch):
+    async def fake_review(*args, **kwargs):
+        return {
+            "coverage": 0.0,
+            "all_claims_supported": False,
+            "covered_requirements": 0,
+            "total_requirements": 1,
+            "unsupported_claims": ["Nên ăn phở"],
+            "supported_source_indexes": [],
+            "supported_citation_indexes": [],
+            "unsupported_citation_indexes": [1],
+        }
+
+    monkeypatch.setattr(confidence, "evaluate_answer_coverage", fake_review)
+
+    import asyncio
+
+    answer, sources, result = asyncio.run(
+        confidence.assess_answer_with_coverage(
+            "Trưa nay ăn gì?",
+            "Tài liệu MLN122 không đề cập bữa trưa; có thể ăn phở [1].",
+            _sources(0.8),
+            [{"title": "MLN122", "content": "Tài liệu về triết học."}],
+        )
+    )
+
+    assert answer == "Tài liệu MLN122 không đề cập bữa trưa; có thể ăn phở."
+    assert sources == []
+    assert result["grounded"] is False
+    assert result["confidence"] <= 0.2

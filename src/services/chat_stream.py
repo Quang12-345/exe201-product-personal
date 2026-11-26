@@ -5,6 +5,7 @@ Tái dùng các node của LangGraph cho phần validate → lưu câu hỏi →
 
     {"type": "sources", "sources": [...], "conversation_id": "..."}
     {"type": "token", "token": "..."}            # lặp lại nhiều lần
+    {"type": "replace", "text": "..."}            # thay text sau khi rà nguồn
     {"type": "done", "conversation_id": "..."}
     {"type": "error", "message": "..."}
 
@@ -24,7 +25,6 @@ from src.agents.nodes.message_node import save_assistant_message_node, save_user
 from src.agents.nodes.retrieve_node import retrieve_context_node
 from src.agents.nodes.validate_node import validate_input_node
 from src.config import get_settings
-from src.services.citations import select_cited_sources
 from src.services.llm import _build_messages, get_llm
 
 
@@ -160,23 +160,25 @@ async def _run_stream(state: dict) -> AsyncIterator[str]:
     if errored and not full and fallback_msg:
         yield _sse({"type": "token", "token": fallback_msg})
 
-    # Chỉ giữ nguồn được trích dẫn trong câu trả lời; lưu + phát ở sự kiện done.
-    cited_sources = select_cited_sources(full, state.get("sources", [])) if full else []
-    state["response"] = full or state.get("response", "")
-    state["sources"] = cited_sources
-    # Tính độ tin cậy 1 lần (đa tín hiệu, đã hiệu chuẩn) → lưu kèm message để tải lại
-    # hội thoại vẫn hiển thị đúng, và dùng chung cho sự kiện done.
+    # Xác minh từng trích dẫn với tài liệu; nếu cần, thay phần text đã stream để
+    # không để lại marker trích dẫn trên khẳng định không được nguồn hỗ trợ.
     from src.services.confidence import assess_answer_with_coverage
 
     _settings = get_settings()
-    state["confidence"] = await assess_answer_with_coverage(
+    raw_answer = full or state.get("response", "")
+    clean_answer, cited_sources, assessment = await assess_answer_with_coverage(
         state["query"],
-        state["response"],
-        cited_sources,
+        raw_answer,
+        state.get("sources", []),
         retrieved,
         rag_min_score=_settings.rag_min_score,
         rag_fallback_min_score=_settings.rag_fallback_min_score,
     )
+    if clean_answer != raw_answer and full:
+        yield _sse({"type": "replace", "text": clean_answer})
+    state["response"] = clean_answer
+    state["sources"] = cited_sources
+    state["confidence"] = assessment
     if not errored or full:
         await _safe_save_assistant(state)
 

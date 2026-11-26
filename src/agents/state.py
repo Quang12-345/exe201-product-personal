@@ -26,5 +26,6 @@ class AgentState(TypedDict, total=False):
     sources: list[dict]
     doc_info: dict
     response: str
+    confidence: dict
     error: str
     metadata: dict

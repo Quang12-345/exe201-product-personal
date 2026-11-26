@@ -58,10 +58,11 @@ async function fallbackChat(text, { conversationId, topK, token, onToken, onDone
 
 // sendChatStream(text, { conversationId, topK, onToken, onDone, onError })
 //  - onToken(token): mỗi token mới
+//  - onReplace(text): thay toàn bộ nội dung khi backend gỡ trích dẫn không hợp lệ
 //  - onDone({ conversationId, sources }): khi hoàn tất
 //  - onError(message)
 export async function sendChatStream(text, handlers = {}) {
-  const { conversationId = null, topK = 5, onToken, onDone, onError } = handlers
+  const { conversationId = null, topK = 5, onToken, onReplace, onDone, onError } = handlers
   const token = storedToken()
   const requestId = globalThis.crypto?.randomUUID?.() || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`
   const fallbackArgs = { conversationId, topK, token, onToken, onDone, onError, requestId }
@@ -111,6 +112,8 @@ export async function sendChatStream(text, handlers = {}) {
         receivedAny = true
         if (evt.type === 'token') {
           onToken?.(evt.token)
+        } else if (evt.type === 'replace') {
+          onReplace?.(evt.text || '')
         } else if (evt.type === 'error') {
           streamError = evt.message || 'Đã có lỗi khi tạo câu trả lời.'
         } else if (evt.type === 'done') {
