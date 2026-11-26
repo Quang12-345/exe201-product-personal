@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.agents.nodes import embed_node, retrieve_node
+from src.agents.nodes import embed_node, generate_node, retrieve_node
 from src.services.vector_store import VectorSearchResult
 
 
@@ -25,6 +25,16 @@ async def test_embed_node_soft_fails_on_exception(monkeypatch):
 async def test_embed_node_short_circuits_on_existing_error():
     result = await embed_node.embed_query_node({"query": "hi", "error": "earlier"})
     assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_generate_node_hides_vector_error_details():
+    result = await generate_node.generate_answer_node(
+        {"error": "Vector search error: connection refused"}
+    )
+
+    assert "dịch vụ tìm kiếm tài liệu" in result["response"]
+    assert "connection refused" not in result["response"]
 
 
 @pytest.mark.asyncio

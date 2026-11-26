@@ -45,7 +45,11 @@ async def diagnostics_controller(session: AsyncSession) -> dict:
         )
     except Exception as exc:
         out["qdrant_reachable"] = False
-        out["qdrant_error"] = str(exc)[:200]
+        out["qdrant_error"] = (
+            f"{type(exc).__name__}: {str(exc).strip()}"[:200]
+            if str(exc).strip()
+            else type(exc).__name__
+        )
 
     # DB: đếm tài liệu/người dùng
     try:
